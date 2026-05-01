@@ -25,64 +25,6 @@ class Array:
             raise IndexError("Chỉ mục vượt quá phạm vi.")
 
 
-# --- Prefix Sum (Mảng cộng dồn) ---
-class PrefixSumArray:
-    """
-    Mảng cộng dồn, hỗ trợ tính tổng đoạn nhanh O(1).
-    Lưu ý: Cấu trúc này là bất biến (immutable) sau khi khởi tạo.
-    Nếu mảng gốc thay đổi, cần khởi tạo lại PrefixSumArray.
-    """
-
-    def __init__(self, input_array):
-        if input_array is None:
-            raise ValueError("Input array không hợp lệ.")
-
-        self.n = len(input_array)
-        self.prefix_array = Array(self.n) if self.n > 0 else None
-
-        if self.n == 0:
-            return
-
-        # Phần tử đầu
-        self.prefix_array.set(0, input_array[0])
-
-        # Xây dựng prefix sum
-        for i in range(1, self.n):
-            value = self.prefix_array.get(i - 1) + input_array[i]
-            self.prefix_array.set(i, value)
-
-    def range_sum(self, left, right):
-        """
-        Tính tổng đoạn từ left → right (bao gồm hai đầu mút).
-        Độ phức tạp: O(1).
-        """
-        if self.n == 0:
-            raise IndexError("Mảng rỗng, không thể tính tổng.")
-        if not (0 <= left <= right < self.n):
-            raise IndexError("Index out of bounds")
-
-        if left == 0:
-            return self.prefix_array.get(right)
-
-        return self.prefix_array.get(right) - self.prefix_array.get(left - 1)
-
-    def get_prefix_array(self):
-        """Trả về toàn bộ mảng cộng dồn dưới dạng list thường."""
-        result = []
-        for i in range(self.n):
-            result.append(self.prefix_array.get(i))
-        return result
-
-    def __len__(self):
-        return self.n
-
-    def __str__(self):
-        if self.n == 0:
-            return "PrefixSumArray:[]"
-        values = [str(self.prefix_array.get(i)) for i in range(self.n)]
-        return "PrefixSumArray:[" + ", ".join(values) + "]"
-
-
 # --- HashTable (Bảng băm với chaining) ---
 class HashNode:
     """Nút trong bucket của bảng băm."""
@@ -95,7 +37,6 @@ class HashNode:
 class HashTable:
     """
     Bảng băm, giải quyết xung đột bằng chaining.
-    Tự động resize khi load factor vượt ngưỡng LOAD_FACTOR_THRESHOLD.
     """
 
     LOAD_FACTOR_THRESHOLD = 0.75
@@ -121,7 +62,7 @@ class HashTable:
 
         self.table_size *= 2
         self.buckets_array = Array(self.table_size)
-        self.item_count = 0
+        self.item_count = 0  # reset để put_item đếm lại chính xác khi rehash
 
         for i in range(old_size):
             current = old_buckets.get(i)
@@ -134,29 +75,21 @@ class HashTable:
         index = self.hash_index(key)
         current_hash_node = self.buckets_array.get(index)
 
-        # Nếu key đã tồn tại → cập nhật value
         while current_hash_node:
             if current_hash_node.key == key:
                 current_hash_node.value = value
                 return
             current_hash_node = current_hash_node.next_node
 
-        # Thêm node mới vào đầu bucket (prepend)
         new_hash_node = HashNode(key, value)
         new_hash_node.next_node = self.buckets_array.get(index)
         self.buckets_array.set(index, new_hash_node)
         self.item_count += 1
 
-        # Kiểm tra và resize nếu cần
         if self._should_resize():
             self._resize()
 
     def get_item(self, key):
-        """
-        Lấy value theo key.
-        Raise KeyError nếu key không tồn tại.
-        Dùng contains_key() trước nếu không chắc key có tồn tại không.
-        """
         index = self.hash_index(key)
         current_hash_node = self.buckets_array.get(index)
 
@@ -215,14 +148,34 @@ class HashTable:
                 current = current.next_node
 
 
+# --- CounterArray (Mảng đếm) ---
+class CounterArray:
+    def __init__(self, size):
+        if size <= 0:
+            raise ValueError("Kích thước mảng đếm phải dương.")
+        self.size = size
+        self._data = Array(size)
+        for i in range(size):
+            self._data.set(i, 0)
+
+    def increment(self, index):
+        """Tăng giá trị tại vị trí index lên 1. Độ phức tạp: O(1)."""
+        self._data.set(index, self._data.get(index) + 1)
+
+    def get(self, index):
+        """Lấy giá trị tại vị trí index. Độ phức tạp: O(1)."""
+        return self._data.get(index)
+
+    def __len__(self):
+        return self.size
+
+    def __str__(self):
+        values = [str(self._data.get(i)) for i in range(self.size)]
+        return "CounterArray:[" + ", ".join(values) + "]"
+
+
 # --- Tệp tin tuần tự ---
 class SequentialFile:
-    """
-    Tệp tin lưu dữ liệu theo thứ tự tuần tự.
-    Lưu ý: find() và delete() chỉ xử lý lần xuất hiện ĐẦU TIÊN của value.
-    Dùng find_all() và delete_all() nếu cần xử lý toàn bộ.
-    """
-
     def __init__(self):
         self.data = []
         self.size = 0
@@ -243,42 +196,23 @@ class SequentialFile:
         return list(self.data)
 
     def find(self, value):
-        """
-        Tìm vị trí đầu tiên của value.
-        Trả về index nếu tìm thấy, -1 nếu không có.
-        """
         for i in range(self.size):
             if self.data[i] == value:
                 return i
         return -1
 
     def find_all(self, value):
-        """
-        Tìm tất cả vị trí xuất hiện của value.
-        Trả về list các index (rỗng nếu không tìm thấy).
-        """
         return [i for i in range(self.size) if self.data[i] == value]
 
     def delete(self, value):
-        """
-        Xóa lần xuất hiện ĐẦU TIÊN của value.
-        Trả về True nếu xóa thành công, False nếu không tìm thấy.
-        Dùng delete_all() để xóa tất cả.
-        """
         for i in range(self.size):
             if self.data[i] == value:
-                for j in range(i, self.size - 1):
-                    self.data[j] = self.data[j + 1]
-                self.data.pop()
+                self.data.pop(i)
                 self.size -= 1
                 return True
         return False
 
     def delete_all(self, value):
-        """
-        Xóa TẤT CẢ các lần xuất hiện của value.
-        Trả về số phần tử đã xóa.
-        """
         original_size = self.size
         self.data = [x for x in self.data if x != value]
         self.size = len(self.data)
