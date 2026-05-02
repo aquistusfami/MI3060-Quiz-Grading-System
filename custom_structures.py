@@ -4,7 +4,7 @@
 class Array:
     def __init__(self, capacity):
         if capacity <= 0:
-            raise ValueError("Capacity must be positive")
+            raise ValueError("Capacity phải dương")
 
         self.capacity = capacity
         self.data = [None] * capacity
