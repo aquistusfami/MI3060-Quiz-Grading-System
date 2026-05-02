@@ -2,7 +2,7 @@
 
 Bài tập Lớn môn Cấu trúc Dữ liệu và Giải thuật - Đại học Bách Khoa Hà Nội.
 
-158236 - MI3060
+169306 - MI3060
 
 ## 1. Thông tin nhóm sinh viên
 
