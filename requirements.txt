@@ -1,0 +1,4 @@
+# He thong Cham Diem Trac Nghiem
+customtkinter>=5.2.2
+
+# Chay: python main_gui.py
