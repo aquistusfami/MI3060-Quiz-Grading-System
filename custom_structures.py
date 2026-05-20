@@ -180,50 +180,108 @@ class HashTable:
         return f"HashTable(size={self.size}, capacity={self.capacity})"
 
 
-# --- DynamicArray (Mảng động tùy chỉnh) ---
+# --- List (Danh sách - Mảng động tùy chỉnh) ---
 
-class DynamicArray:
-    """
-    Mảng động tự cài đặt.
-    Tự mở rộng gấp đôi khi hết chỗ.
-    """
+class List:
+    """Mảng động tùy chỉnh, tự mở rộng khi hết chỗ."""
 
-    def __init__(self):
-        self._capacity = 8
+    _MIN_CAPACITY = 8
+
+    def __init__(self, initial_capacity: int = _MIN_CAPACITY):
+        self._capacity = max(int(initial_capacity), self._MIN_CAPACITY)
         self._size = 0
-        self._data = [None] * self._capacity
+        self._elements = [None] * self._capacity
 
     def append(self, item) -> None:
+        """Thêm phần tử vào cuối danh sách."""
         if self._size == self._capacity:
-            self._grow()
-        self._data[self._size] = item
+            self._resize(self._capacity * 2)
+        self._elements[self._size] = item
         self._size += 1
 
     def get(self, index):
-        if not (0 <= index < self._size):
-            raise IndexError(f"Index {index} out of range (size={self._size})")
-        return self._data[index]
+        """Lấy phần tử tại chỉ mục, hỗ trợ chỉ mục âm."""
+        index = self._normalize_existing_index(index)
+        return self._elements[index]
 
-    def _grow(self) -> None:
-        new_capacity = self._capacity * 2
-        new_data = [None] * new_capacity
-        for i in range(self._size):
-            new_data[i] = self._data[i]
-        self._data = new_data
-        self._capacity = new_capacity
+    def set(self, index, item) -> None:
+        """Đặt giá trị phần tử tại chỉ mục, hỗ trợ chỉ mục âm."""
+        index = self._normalize_existing_index(index)
+        self._elements[index] = item
+
+    def insert(self, index, item) -> None:
+        """Chèn phần tử vào chỉ mục."""
+        if index < 0:
+            index = max(0, index + self._size)
+        if not (0 <= index <= self._size):
+            raise IndexError("List: Chỉ mục chèn ngoài phạm vi")
+
+        if self._size == self._capacity:
+            self._resize(self._capacity * 2)
+
+        for i in range(self._size, index, -1):
+            self._elements[i] = self._elements[i - 1]
+        self._elements[index] = item
+        self._size += 1
+
+    def pop(self, index=-1):
+        """Xóa và trả về phần tử tại chỉ mục, mặc định là cuối danh sách."""
+        if self.is_empty():
+            raise IndexError("List: Pop từ danh sách rỗng")
+
+        index = self._normalize_existing_index(index)
+        item = self._elements[index]
+        for i in range(index, self._size - 1):
+            self._elements[i] = self._elements[i + 1]
+        self._size -= 1
+        self._elements[self._size] = None
+
+        if self._size < self._capacity // 4 and self._capacity // 2 >= self._MIN_CAPACITY:
+            self._resize(self._capacity // 2)
+
+        return item
+
+    def is_empty(self) -> bool:
+        return self._size == 0
 
     def to_list(self) -> list:
-        return [self._data[i] for i in range(self._size)]
+        return [self._elements[i] for i in range(self._size)]
+
+    def _resize(self, new_capacity: int) -> None:
+        new_capacity = max(new_capacity, self._MIN_CAPACITY)
+        new_elements = [None] * new_capacity
+        for i in range(self._size):
+            new_elements[i] = self._elements[i]
+        self._elements = new_elements
+        self._capacity = new_capacity
+
+    def _normalize_existing_index(self, index: int) -> int:
+        if index < 0:
+            index += self._size
+        if not (0 <= index < self._size):
+            raise IndexError("List: Chỉ mục ngoài phạm vi")
+        return index
 
     def __len__(self):
         return self._size
 
     def __iter__(self):
         for i in range(self._size):
-            yield self._data[i]
+            yield self._elements[i]
+
+    def __getitem__(self, index):
+        return self.get(index)
+
+    def __setitem__(self, index, value):
+        self.set(index, value)
 
     def __repr__(self):
-        return f"DynamicArray({self.to_list()})"
+        return f"List({self.to_list()})"
+
+    def __str__(self):
+        if self.is_empty():
+            return "List:[]"
+        return "List:[" + ", ".join(str(item) for item in self) + "]"
 
 
 # --- Merge Sort (Sắp xếp trộn tự cài đặt) ---
