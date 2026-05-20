@@ -9,7 +9,7 @@ A desktop application for grading multiple-choice exams from CSV files. The proj
 - Grade every student on a 10-point scale.
 - Show ranking by score, number of correct answers, exam, and student ID.
 - Filter results by score range, exam, and class section.
-- Search student results by student ID.
+- Search student results by student ID or name.
 - View each student's selected answers beside the correct answers.
 - Compute exam-level statistics: average score, highest score, lowest score, standard deviation, pass count, fail count, and pass rate.
 - Compute class-level summaries by exam and class section.
@@ -23,10 +23,12 @@ A desktop application for grading multiple-choice exams from CSV files. The proj
 ```text
 .
 ├── app_logic.py              # CSV loading, grading, statistics, search, export logic
-├── custom_structures.py      # Custom HashTable, DynamicArray, merge sort, MinHeap
+├── custom_structures.py      # Custom HashTable, List, merge sort, MinHeap
 ├── main_gui.py               # CustomTkinter desktop interface
 ├── models.py                 # Question, ExamInfo, Student, ExamResult, ExamStatistics
 ├── requirements.txt          # Python dependencies
+├── scripts/
+│   └── generate_perf_data.py # Deterministic large CSV dataset generator
 ├── data/
 │   ├── answer_key.csv        # Sample answer keys
 │   ├── exams.csv             # Sample exam metadata
@@ -128,6 +130,23 @@ Common columns:
 | `ghi_chu` | Note | `Ap dung cho cac lop hoc phan 163613-163615` |
 
 The app can still run if `exams.csv` is missing. In that case, it infers basic exam entries from the answer key and student data.
+When selected answer/student files live beside an `exams.csv`, the GUI uses that metadata file automatically.
+
+## Performance Dataset
+
+Generate a larger deterministic dataset:
+
+```bash
+python scripts/generate_perf_data.py
+```
+
+Output files:
+
+- `data/performance/exams.csv`: 5 exams
+- `data/performance/answer_key.csv`: 500 answer-key rows, 100 questions per exam
+- `data/performance/students.csv`: 10,000 students, 100 answers per student
+
+The generated students are distributed across 5 courses and 40 course sections. Their answers are based on a mixed ability distribution, so score statistics are realistic enough for grading, filtering, top-k, question statistics, and export performance tests.
 
 ## Output Files
 
@@ -141,17 +160,18 @@ The exported files use UTF-8 with BOM so spreadsheet applications can open Vietn
 ## Main Screens
 
 - `Kết quả & Xếp hạng`: ranking table, score range filter, top-k results, exam/class filters, and answer detail for selected students.
-- `Thống kê tổng hợp`: overall statistics, class summaries, and hash table collision information.
+- `Thống kê tổng hợp`: overall statistics and class summaries.
 - `Thông tin kỳ thi`: exam list and exam details.
+- `Danh sách lớp HP`: class roster summaries and graded students by class section.
 - `Thống kê câu hỏi`: correct rate by question, hardest questions, and answer key editing.
-- `Tìm kiếm thí sinh`: lookup by student ID across exams.
+- `Tìm kiếm thí sinh`: lookup by student ID or name across exams.
 
 ## Algorithms and Data Structures
 
 The project intentionally uses custom implementations instead of relying only on Python built-ins:
 
 - `HashTable`: separate chaining hash table for answer keys, results, exam metadata, and grouped statistics.
-- `DynamicArray`: resizable array for loaded student records.
+- `List`: resizable array for loaded student records.
 - `merge_sort`: stable sorting for rankings, exam lists, score indexes, and summaries.
 - `MinHeap`: finds the hardest questions by lowest correct-answer rate.
 - Binary-search-style score range lookup: uses a sorted score index to retrieve students in a score interval.
