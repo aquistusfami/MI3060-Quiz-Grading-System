@@ -1,0 +1,6 @@
+exam_id,ma_hp,ten_hp,hoc_ky,ten_ky_thi,ngay_thi,thoi_luong_phut,ghi_chu
+PERF001,MI1111,Giai tich 1,20252,Kiem tra trac nghiem Giai tich 1,2026-05-11,60,"Bo du lieu hieu nang, 100 cau, nhieu lop hoc phan"
+PERF002,MI1141,Dai so tuyen tinh,20252,Kiem tra trac nghiem Dai so tuyen tinh,2026-05-12,60,"Bo du lieu hieu nang, 100 cau, nhieu lop hoc phan"
+PERF003,IT1110,Tin hoc dai cuong,20252,Kiem tra trac nghiem Tin hoc dai cuong,2026-05-13,60,"Bo du lieu hieu nang, 100 cau, nhieu lop hoc phan"
+PERF004,PH1120,Vat ly dai cuong,20252,Kiem tra trac nghiem Vat ly dai cuong,2026-05-14,60,"Bo du lieu hieu nang, 100 cau, nhieu lop hoc phan"
+PERF005,EM1010,Kinh te hoc dai cuong,20252,Kiem tra trac nghiem Kinh te hoc dai cuong,2026-05-15,60,"Bo du lieu hieu nang, 100 cau, nhieu lop hoc phan"
