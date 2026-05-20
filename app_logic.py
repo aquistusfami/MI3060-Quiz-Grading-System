@@ -5,7 +5,7 @@
 import csv
 import os
 
-from custom_structures import HashTable, DynamicArray, MinHeap, PrefixTrie, merge_sort
+from custom_structures import HashTable, List, MinHeap, PrefixTrie, merge_sort
 from models import (
     Question,
     ExamInfo,
@@ -168,12 +168,12 @@ def load_answer_key(filepath: str) -> AnswerKeyBook:
     return answer_key
 
 
-def load_students(filepath: str, num_questions: int | None = None) -> DynamicArray:
+def load_students(filepath: str, num_questions: int | None = None) -> List:
     """
     Đọc file bài làm thí sinh.
-    Trả về DynamicArray chứa các đối tượng Student.
+    Trả về List chứa các đối tượng Student.
     """
-    students = DynamicArray()
+    students = List()
 
     with open(filepath, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -208,7 +208,7 @@ def load_students(filepath: str, num_questions: int | None = None) -> DynamicArr
 
 def infer_exam_store(
     answer_key: AnswerKeyBook,
-    students: DynamicArray | None = None,
+    students: List | None = None,
     existing_store: ExamStore | None = None,
 ) -> ExamStore:
     """Bổ sung metadata kỳ thi từ đáp án và bài làm."""
@@ -303,7 +303,7 @@ def grade_student(
     )
 
 
-def grade_all(students: DynamicArray, answer_key: AnswerKeyBook) -> HashTable:
+def grade_all(students: List, answer_key: AnswerKeyBook) -> HashTable:
     """
     Chấm điểm toàn bộ thí sinh.
     Trả về HashTable: {exam_id|student_id -> ExamResult}.
@@ -326,7 +326,7 @@ def grade_all(students: DynamicArray, answer_key: AnswerKeyBook) -> HashTable:
 # --- Thống kê câu hỏi ---
 
 def compute_question_stats(
-    students: DynamicArray,
+    students: List,
     answer_key: AnswerKeyBook,
 ) -> HashTable:
     """
@@ -692,7 +692,7 @@ def build_class_summary(results: HashTable) -> list:
     return merge_sort(summary, key=lambda item: (item["exam_id"], item["class_id"]))
 
 
-def build_class_roster_summary(students: DynamicArray) -> list:
+def build_class_roster_summary(students: List) -> list:
     """Tạo danh sách lớp học phần từ file thí sinh, chưa cần chấm điểm."""
     groups = HashTable()
     for student in students:
@@ -719,7 +719,7 @@ def build_class_roster_summary(students: DynamicArray) -> list:
 def build_exam_summary(
     exam_store: ExamStore,
     answer_key: AnswerKeyBook,
-    students: DynamicArray,
+    students: List,
     results: HashTable | None = None,
 ) -> list:
     """Tóm tắt từng kỳ thi để hiển thị, không kèm danh sách câu hỏi."""
