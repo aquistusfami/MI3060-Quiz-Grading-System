@@ -6,7 +6,15 @@ import csv
 import os
 
 from custom_structures import HashTable, DynamicArray, MinHeap, PrefixTrie, merge_sort
-from models import Question, ExamInfo, Student, ExamResult, ExamStatistics
+from models import (
+    Question,
+    ExamInfo,
+    Student,
+    ExamResult,
+    ExamStatistics,
+    normalize_answer,
+    normalize_question_id,
+)
 
 DEFAULT_EXAM_ID = "EXAM001"
 
@@ -20,6 +28,7 @@ class AnswerKeyBook:
 
     def put(self, exam_id: str, question: Question) -> None:
         exam_id = _normalize_exam_id(exam_id)
+        question.question_id = normalize_question_id(question.question_id)
         exam_key = self.exam_keys.get(exam_id)
         if exam_key is None:
             exam_key = HashTable()
@@ -47,13 +56,13 @@ class AnswerKeyBook:
         exam_key = self.get_exam_key(exam_id)
         if exam_key is None:
             return None
-        return exam_key.get(str(question_id))
+        return exam_key.get(normalize_question_id(question_id))
 
     def update_answer(self, exam_id: str, question_id: str, answer: str) -> None:
         question = self.get_question(exam_id, question_id)
         if question is None:
             raise ValueError(f"Không tìm thấy câu {question_id} trong kỳ thi {exam_id}.")
-        question.correct_answer = answer.strip().upper()
+        question.correct_answer = normalize_answer(answer)
 
     def max_question_count(self) -> int:
         max_count = 0
@@ -363,7 +372,7 @@ def _result_key(exam_id: str, student_id: str) -> str:
 
 
 def _question_stat_key(exam_id: str, question_id: str) -> str:
-    return f"{_normalize_exam_id(exam_id)}|{question_id}"
+    return f"{_normalize_exam_id(exam_id)}|{normalize_question_id(question_id)}"
 
 
 # --- Xuất kết quả ra CSV ---
@@ -550,7 +559,10 @@ def get_hardest_questions(question_stats: HashTable, n: int = 5) -> list:
         correct = data["correct"]
         rate = round(correct / total * 100, 1) if total > 0 else 0.0
         qid = data["question_id"]
-        heap.push((rate, data["exam_id"], int(qid)), (data["exam_id"], qid, correct, total, rate))
+        heap.push(
+            (rate, data["exam_id"], _question_sort_value(qid)),
+            (data["exam_id"], qid, correct, total, rate),
+        )
 
     hardest = []
     for _ in range(min(n, len(heap))):
@@ -563,7 +575,7 @@ def get_question_stats_items(question_stats: HashTable) -> list:
     """Trả về thống kê câu hỏi đã sắp xếp."""
     return merge_sort(
         question_stats.values(),
-        key=lambda data: (data["exam_id"], int(data["question_id"])),
+        key=lambda data: (data["exam_id"], _question_sort_value(data["question_id"])),
     )
 
 
@@ -579,7 +591,10 @@ def get_answer_key_items(answer_key: AnswerKeyBook, exam_id: str | None = None) 
             continue
         for question in exam_key.values():
             items.append(question)
-    return merge_sort(items, key=lambda q: (q.exam_id, int(q.question_id)))
+    return merge_sort(
+        items,
+        key=lambda q: (q.exam_id, _question_sort_value(q.question_id)),
+    )
 
 
 def get_student_answer_items(result: ExamResult, answer_key: AnswerKeyBook) -> list:
@@ -589,7 +604,7 @@ def get_student_answer_items(result: ExamResult, answer_key: AnswerKeyBook) -> l
         return []
 
     items = []
-    question_ids = merge_sort(exam_key.keys(), key=lambda qid: int(qid))
+    question_ids = merge_sort(exam_key.keys(), key=_question_sort_value)
     for qid in question_ids:
         question = exam_key.get(qid)
         selected = result.student.get_answer(qid)
@@ -601,6 +616,13 @@ def get_student_answer_items(result: ExamResult, answer_key: AnswerKeyBook) -> l
             "is_correct": is_correct,
         })
     return items
+
+
+def _question_sort_value(question_id: str) -> tuple[int, int | str]:
+    question_id = normalize_question_id(question_id)
+    if str(question_id).isdigit():
+        return (0, int(question_id))
+    return (1, str(question_id))
 
 
 def get_class_names(results: HashTable) -> list:

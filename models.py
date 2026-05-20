@@ -1,7 +1,23 @@
 # models.py
 # Các lớp dữ liệu của hệ thống.
 
+import re
+
 from custom_structures import merge_sort
+
+
+def normalize_question_id(question_id: str) -> str:
+    """Normalize common question labels to the numeric id used for grading."""
+    value = str(question_id).strip()
+    value = re.sub(r"^(câu|cau)\s*", "", value, flags=re.IGNORECASE)
+    value = re.sub(r"^q\s*(?=\d)", "", value, flags=re.IGNORECASE)
+    if value.isdigit():
+        return str(int(value))
+    return value
+
+
+def normalize_answer(answer: str) -> str:
+    return str(answer).strip().upper()
 
 
 # --- Question (Câu hỏi trong đề thi) ---
@@ -16,8 +32,8 @@ class Question:
         exam_id: str = "EXAM001",
     ):
         self.exam_id = str(exam_id).strip() or "EXAM001"
-        self.question_id = str(question_id)
-        self.correct_answer = correct_answer.strip().upper()
+        self.question_id = normalize_question_id(question_id)
+        self.correct_answer = normalize_answer(correct_answer)
 
     def __repr__(self):
         return f"Question(id={self.question_id}, answer={self.correct_answer})"
@@ -79,13 +95,13 @@ class Student:
         self.exam_id = str(exam_id).strip() or "EXAM001"
         # Chuẩn hóa đáp án để so sánh ổn định.
         self.answers = {
-            str(k).strip(): v.strip().upper()
+            normalize_question_id(k): normalize_answer(v)
             for k, v in answers.items()
         }
 
     def get_answer(self, question_id: str) -> str:
         """Lấy đáp án của một câu hỏi; trả về rỗng nếu thiếu."""
-        return self.answers.get(str(question_id), "")
+        return self.answers.get(normalize_question_id(question_id), "")
 
     def __repr__(self):
         return f"Student(id={self.student_id}, name={self.student_name})"

@@ -37,6 +37,7 @@ from app_logic import (
     build_exam_summary,
     build_exam_statistics,
 )
+from models import normalize_question_id
 
 # Đường dẫn mặc định.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -45,7 +46,7 @@ DEFAULT_STUDENTS = os.path.join(BASE_DIR, "data", "students.csv")
 DEFAULT_EXAMS = os.path.join(BASE_DIR, "data", "exams.csv")
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 
-ctk.set_appearance_mode("light")
+ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("blue")
 
 
@@ -55,8 +56,8 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Hệ thống Chấm Điểm Trắc Nghiệm")
-        self.geometry("1350x900")
-        self.minsize(1120, 720)
+        self.geometry("1280x850")
+        self.minsize(980, 680)
         self.resizable(True, True)
 
         # Trạng thái dữ liệu.
@@ -79,83 +80,68 @@ class App(ctk.CTk):
     # --- Xây dựng giao diện ---
 
     def _build_ui(self):
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
-
         self._configure_ttk_style()
 
-        header = ctk.CTkFrame(self, corner_radius=0)
-        header.grid(row=0, column=0, sticky="ew")
-        header.grid_columnconfigure(0, weight=1)
-
-        title_block = ctk.CTkFrame(header, fg_color="transparent")
-        title_block.grid(row=0, column=0, sticky="w", padx=18, pady=(14, 8))
+        header = ctk.CTkFrame(self)
+        header.pack(fill="x", padx=10, pady=(10, 5))
 
         ctk.CTkLabel(
-            title_block,
-            text="Hệ thống Chấm Điểm Trắc Nghiệm",
-            font=ctk.CTkFont(size=22, weight="bold"),
-        ).pack(anchor="w")
-        # ctk.CTkLabel(
-        #     title_block,
-        #     text="Nhập file CSV, chấm điểm, thống kê và tra cứu kết quả",
-        #     font=ctk.CTkFont(size=13),
-        # ).pack(anchor="w", pady=(2, 0))
+            header,
+            text="HỆ THỐNG CHẤM ĐIỂM TRẮC NGHIỆM",
+            font=ctk.CTkFont(size=16, weight="bold"),
+        ).pack(pady=(10, 6))
 
-        toolbar = ctk.CTkFrame(header, fg_color="transparent")
-        toolbar.grid(row=1, column=0, sticky="ew", padx=18, pady=(0, 14))
+        toolbar = ctk.CTkFrame(header)
+        toolbar.pack(fill="x", padx=10, pady=(0, 10))
         toolbar.grid_columnconfigure(1, weight=1)
         toolbar.grid_columnconfigure(4, weight=1)
 
-        ctk.CTkLabel(toolbar, text="File đáp án").grid(
-            row=0, column=0, sticky="w", padx=(0, 8)
+        ctk.CTkLabel(toolbar, text="File đáp án:").grid(
+            row=0, column=0, sticky="w", padx=5, pady=5
         )
         self.var_answer_path = tk.StringVar(value=DEFAULT_ANSWER_KEY)
         ctk.CTkEntry(toolbar, textvariable=self.var_answer_path).grid(
-            row=0, column=1, sticky="ew", padx=(0, 6)
+            row=0, column=1, sticky="ew", padx=5, pady=5
         )
         ctk.CTkButton(
             toolbar,
-            text="...",
-            width=38,
+            text="Chọn",
+            width=70,
             command=self._browse_answer,
-        ).grid(row=0, column=2, padx=(0, 16))
+        ).grid(row=0, column=2, padx=5, pady=5)
 
-        ctk.CTkLabel(toolbar, text="File thí sinh").grid(
-            row=0, column=3, sticky="w", padx=(0, 8)
+        ctk.CTkLabel(toolbar, text="File thí sinh:").grid(
+            row=1, column=0, sticky="w", padx=5, pady=5
         )
         self.var_student_path = tk.StringVar(value=DEFAULT_STUDENTS)
         ctk.CTkEntry(toolbar, textvariable=self.var_student_path).grid(
-            row=0, column=4, sticky="ew", padx=(0, 6)
+            row=1, column=1, sticky="ew", padx=5, pady=5
         )
         ctk.CTkButton(
             toolbar,
-            text="...",
-            width=38,
+            text="Chọn",
+            width=70,
             command=self._browse_students,
-        ).grid(row=0, column=5, padx=(0, 16))
+        ).grid(row=1, column=2, padx=5, pady=5)
 
         ctk.CTkButton(
             toolbar,
-            text="CHẤM ĐIỂM",
+            text="Chấm điểm",
             width=120,
             font=ctk.CTkFont(size=13, weight="bold"),
             command=self._run_grading,
-        ).grid(row=0, column=6, padx=(0, 8))
+        ).grid(row=0, column=3, padx=(15, 5), pady=5, sticky="ew")
 
         ctk.CTkButton(
             toolbar,
             text="Xuất CSV",
             width=92,
             command=self._export,
-        ).grid(row=0, column=7)
+        ).grid(row=1, column=3, padx=(15, 5), pady=5, sticky="ew")
 
         # Khu vực tab chính.
-        self.tabview = ctk.CTkTabview(
-            self,
-            corner_radius=8,
-        )
-        self.tabview.grid(row=1, column=0, sticky="nsew", padx=16, pady=16)
+        self.tabview = ctk.CTkTabview(self, width=1330, height=760)
+        self.tabview.pack(expand=True, fill="both", padx=10, pady=5)
 
         self.tab_results = self.tabview.add("Kết quả & Xếp hạng")
         self.tab_stats = self.tabview.add("Thống kê tổng hợp")
@@ -179,7 +165,7 @@ class App(ctk.CTk):
             anchor="w",
             height=30,
         )
-        status.grid(row=2, column=0, sticky="ew")
+        status.pack(fill="x", padx=10, pady=(0, 6))
 
     def _section_frame(self, parent, title: str):
         frame = ctk.CTkFrame(parent)
@@ -188,7 +174,7 @@ class App(ctk.CTk):
             frame,
             text=title,
             font=ctk.CTkFont(size=14, weight="bold"),
-        ).grid(row=0, column=0, sticky="w", padx=10, pady=(8, 4))
+        ).grid(row=0, column=0, padx=10, pady=(8, 6))
         return frame
 
     def _configure_ttk_style(self):
@@ -197,102 +183,107 @@ class App(ctk.CTk):
         style.configure(
             "Treeview",
             borderwidth=0,
-            rowheight=30,
-            font=("Arial", 11),
+            rowheight=27,
+            font=("Arial", 10),
         )
         style.configure(
             "Treeview.Heading",
             relief="flat",
-            font=("Arial", 11, "bold"),
-            padding=(8, 8),
+            font=("Arial", 10, "bold"),
+            padding=(6, 6),
         )
 
     # --- TAB KẾT QUẢ VÀ XẾP HẠNG ---
 
     def _build_tab_results(self):
-        self.tab_results.grid_columnconfigure(0, weight=1)
-        self.tab_results.grid_rowconfigure(1, weight=1)
+        main_frame = ctk.CTkFrame(self.tab_results, fg_color="transparent")
+        main_frame.pack(expand=True, fill="both", padx=5, pady=5)
+        main_frame.grid_columnconfigure(0, weight=3)
+        main_frame.grid_columnconfigure(1, weight=2)
+        main_frame.grid_rowconfigure(1, weight=1)
 
-        controls_outer = self._section_frame(self.tab_results, "Bộ lọc & Tra cứu kết quả")
-        controls_outer.grid(row=0, column=0, sticky="ew", padx=8, pady=(8, 6))
+        controls_outer = self._section_frame(main_frame, "BỘ LỌC & TRA CỨU KẾT QUẢ")
+        controls_outer.grid(row=0, column=0, columnspan=2, sticky="ew", padx=5, pady=(5, 10))
         controls = ctk.CTkFrame(controls_outer)
         controls.grid(row=1, column=0, sticky="ew", padx=8, pady=(0, 8))
+        controls.grid_columnconfigure(11, weight=1)
 
-        ctk.CTkLabel(controls, text="Điểm từ").pack(side=tk.LEFT)
+        ctk.CTkLabel(controls, text="Điểm từ").grid(row=0, column=0, padx=(8, 4), pady=5, sticky="w")
         self.var_score_low = tk.StringVar(value="0")
-        ctk.CTkEntry(controls, textvariable=self.var_score_low, width=70).pack(side=tk.LEFT, padx=(6, 10))
+        ctk.CTkEntry(controls, textvariable=self.var_score_low, width=70).grid(row=0, column=1, padx=4, pady=5)
 
-        ctk.CTkLabel(controls, text="đến").pack(side=tk.LEFT)
+        ctk.CTkLabel(controls, text="đến").grid(row=0, column=2, padx=4, pady=5)
         self.var_score_high = tk.StringVar(value="10")
-        ctk.CTkEntry(controls, textvariable=self.var_score_high, width=70).pack(side=tk.LEFT, padx=(6, 10))
+        ctk.CTkEntry(controls, textvariable=self.var_score_high, width=70).grid(row=0, column=3, padx=4, pady=5)
 
         ctk.CTkButton(
             controls,
             text="Lọc điểm",
             width=88,
             command=self._filter_score_range,
-        ).pack(side=tk.LEFT, padx=(0, 8))
+        ).grid(row=0, column=4, padx=5, pady=5)
 
         ctk.CTkButton(
             controls,
             text="Tất cả",
             width=76,
             command=self._show_all_results,
-        ).pack(side=tk.LEFT, padx=(0, 18))
+        ).grid(row=0, column=5, padx=5, pady=5)
 
-        ctk.CTkLabel(controls, text="Top").pack(side=tk.LEFT)
+        ctk.CTkLabel(controls, text="Top").grid(row=0, column=6, padx=(15, 4), pady=5)
         self.var_top_k = tk.StringVar(value="100")
-        ctk.CTkEntry(controls, textvariable=self.var_top_k, width=72).pack(side=tk.LEFT, padx=(6, 10))
+        ctk.CTkEntry(controls, textvariable=self.var_top_k, width=72).grid(row=0, column=7, padx=4, pady=5)
         ctk.CTkButton(
             controls,
             text="Xem top",
             width=88,
             command=self._show_top_k,
-        ).pack(side=tk.LEFT)
+        ).grid(row=0, column=8, padx=5, pady=5)
 
-        ctk.CTkLabel(controls, text="ID lớp HP").pack(side=tk.LEFT, padx=(18, 0))
+        ctk.CTkLabel(controls, text="ID lớp HP").grid(row=1, column=0, padx=(8, 4), pady=5, sticky="w")
         self.var_class_filter = tk.StringVar(value="Tất cả")
-        self.class_filter = ctk.CTkOptionMenu(
+        self.class_filter = ctk.CTkComboBox(
             controls,
             variable=self.var_class_filter,
             values=["Tất cả"],
-            width=130,
+            width=170,
             command=lambda _: self._filter_class(),
         )
-        self.class_filter.pack(side=tk.LEFT, padx=(6, 0))
+        self.class_filter.grid(row=1, column=1, columnspan=3, padx=4, pady=5, sticky="w")
 
-        ctk.CTkLabel(controls, text="Kỳ thi").pack(side=tk.LEFT, padx=(18, 0))
+        ctk.CTkLabel(controls, text="Kỳ thi").grid(row=1, column=4, padx=(15, 4), pady=5, sticky="w")
         self.var_exam_filter = tk.StringVar(value="Tất cả")
-        self.exam_filter = ctk.CTkOptionMenu(
+        self.exam_filter = ctk.CTkComboBox(
             controls,
             variable=self.var_exam_filter,
             values=["Tất cả"],
-            width=130,
+            width=170,
             command=lambda _: self._filter_exam_or_class(),
         )
-        self.exam_filter.pack(side=tk.LEFT, padx=(6, 0))
+        self.exam_filter.grid(row=1, column=5, columnspan=3, padx=4, pady=5, sticky="w")
 
         cols = ("Hạng", "Kỳ thi", "MSSV", "Họ tên", "ID lớp HP", "Mã lớp SV", "Tên lớp SV", "Điểm", "Số câu đúng", "Tổng câu", "Tỷ lệ %")
-        table_outer = self._section_frame(self.tab_results, "BẢNG KẾT QUẢ & XẾP HẠNG")
-        table_outer.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 8))
+        table_outer = self._section_frame(main_frame, "BẢNG KẾT QUẢ & XẾP HẠNG")
+        table_outer.grid(row=1, column=0, sticky="nsew", padx=(5, 5), pady=(0, 5))
         table_outer.grid_columnconfigure(0, weight=1)
         table_outer.grid_rowconfigure(1, weight=1)
         self.tree_results = self._make_treeview(table_outer, cols, row=1, pady=(0, 8))
         self.tree_results.bind("<<TreeviewSelect>>", self._show_student_answers)
 
-        answer_outer = self._section_frame(self.tab_results, "CHI TIẾT BÀI LÀM SINH VIÊN")
-        answer_outer.grid(row=2, column=0, sticky="ew", padx=8, pady=(0, 8))
+        answer_outer = self._section_frame(main_frame, "CHI TIẾT BÀI LÀM SINH VIÊN")
+        answer_outer.grid(row=1, column=1, sticky="nsew", padx=(5, 5), pady=(0, 5))
         answer_outer.grid_columnconfigure(0, weight=1)
+        answer_outer.grid_rowconfigure(1, weight=1)
         answer_cols = ("Câu", "Đáp án SV", "Đáp án đúng", "Kết quả")
         self.tree_student_answers = self._make_treeview(answer_outer, answer_cols, row=1, pady=(0, 8))
 
     # --- TAB THỐNG KÊ TỔNG HỢP ---
 
     def _build_tab_stats(self):
-        self.tab_stats.grid_columnconfigure(0, weight=1)
-        self.tab_stats.grid_rowconfigure(0, weight=1)
-        stats_outer = self._section_frame(self.tab_stats, "Thống kê tổng hợp")
-        stats_outer.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
+        main_frame = ctk.CTkFrame(self.tab_stats, fg_color="transparent")
+        main_frame.pack(expand=True, fill="both", padx=5, pady=5)
+        stats_outer = self._section_frame(main_frame, "THỐNG KÊ TỔNG HỢP")
+        stats_outer.pack(expand=True, fill="both", padx=5, pady=5)
         stats_outer.grid_columnconfigure(0, weight=1)
         stats_outer.grid_rowconfigure(1, weight=1)
         self.stats_text = ctk.CTkTextbox(
@@ -306,12 +297,11 @@ class App(ctk.CTk):
     # --- TAB THÔNG TIN KỲ THI ---
 
     def _build_tab_exam(self):
-        self.tab_exam.grid_columnconfigure(0, weight=3)
-        self.tab_exam.grid_columnconfigure(1, weight=2)
-        self.tab_exam.grid_rowconfigure(0, weight=1)
+        main_frame = ctk.CTkFrame(self.tab_exam, fg_color="transparent")
+        main_frame.pack(expand=True, fill="both", padx=5, pady=5)
 
-        list_outer = self._section_frame(self.tab_exam, "Danh sách kỳ thi / đề thi")
-        list_outer.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
+        list_outer = self._section_frame(main_frame, "DANH SÁCH KỲ THI / ĐỀ THI")
+        list_outer.pack(expand=True, fill="both", padx=5, pady=(5, 10))
         list_outer.grid_columnconfigure(0, weight=1)
         list_outer.grid_rowconfigure(1, weight=1)
 
@@ -319,13 +309,13 @@ class App(ctk.CTk):
         self.tree_exam = self._make_treeview(list_outer, cols, row=1, pady=(0, 8))
         self.tree_exam.bind("<<TreeviewSelect>>", self._show_exam_detail)
 
-        detail_frame = self._section_frame(self.tab_exam, "CHI TIET KY THI")
-        detail_frame.grid(row=0, column=1, sticky="nsew", padx=(0, 8), pady=8)
+        detail_frame = self._section_frame(main_frame, "CHI TIẾT KỲ THI")
+        detail_frame.pack(fill="x", padx=5, pady=(0, 5))
         detail_frame.grid_columnconfigure(0, weight=1)
-        detail_frame.grid_rowconfigure(1, weight=1)
 
         self.exam_detail_text = ctk.CTkTextbox(
             detail_frame,
+            height=170,
             font=("Courier", 12),
             state=tk.DISABLED,
             border_width=1,
@@ -335,10 +325,14 @@ class App(ctk.CTk):
     # --- TAB THỐNG KÊ CÂU HỎI ---
 
     def _build_tab_question(self):
-        self.tab_question.grid_columnconfigure(0, weight=1)
-        self.tab_question.grid_rowconfigure(0, weight=1)
-        question_outer = self._section_frame(self.tab_question, "THỐNG KÊ THEO CÂU HỎI")
-        question_outer.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
+        main_frame = ctk.CTkFrame(self.tab_question, fg_color="transparent")
+        main_frame.pack(expand=True, fill="both", padx=5, pady=5)
+        main_frame.grid_columnconfigure(0, weight=3)
+        main_frame.grid_columnconfigure(1, weight=2)
+        main_frame.grid_rowconfigure(0, weight=1)
+
+        question_outer = self._section_frame(main_frame, "THỐNG KÊ THEO CÂU HỎI")
+        question_outer.grid(row=0, column=0, sticky="nsew", padx=(5, 5), pady=5)
         question_outer.grid_columnconfigure(0, weight=1)
         question_outer.grid_rowconfigure(2, weight=1)
 
@@ -346,7 +340,7 @@ class App(ctk.CTk):
         question_controls.grid(row=1, column=0, sticky="ew", padx=8, pady=(0, 8))
         ctk.CTkLabel(question_controls, text="Chọn đề").pack(side=tk.LEFT)
         self.var_question_exam_filter = tk.StringVar(value="Chưa có dữ liệu")
-        self.question_exam_filter = ctk.CTkOptionMenu(
+        self.question_exam_filter = ctk.CTkComboBox(
             question_controls,
             variable=self.var_question_exam_filter,
             values=["Chưa có dữ liệu"],
@@ -357,8 +351,14 @@ class App(ctk.CTk):
 
         cols = ("Kỳ thi", "Câu hỏi", "Số người đúng", "Số người sai", "Tỷ lệ đúng %")
         self.tree_question = self._make_treeview(question_outer, cols, row=2, pady=(0, 6))
-        hardest_outer = self._section_frame(self.tab_question, "TOP CÂU HỎI KHÓ")
-        hardest_outer.grid(row=1, column=0, sticky="ew", padx=8, pady=(0, 8))
+
+        side_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        side_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 5), pady=5)
+        side_frame.grid_columnconfigure(0, weight=1)
+        side_frame.grid_rowconfigure(1, weight=1)
+
+        hardest_outer = self._section_frame(side_frame, "TOP CÂU HỎI KHÓ")
+        hardest_outer.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 10))
         hardest_outer.grid_columnconfigure(0, weight=1)
         self.hardest_text = ctk.CTkTextbox(
             hardest_outer,
@@ -369,21 +369,22 @@ class App(ctk.CTk):
         )
         self.hardest_text.grid(row=1, column=0, sticky="ew", padx=8, pady=(0, 8))
 
-        answer_key_outer = self._section_frame(self.tab_question, "CHỈNH SỬA ĐÁP ÁN BỘ ĐỀ")
-        answer_key_outer.grid(row=2, column=0, sticky="ew", padx=8, pady=(0, 8))
+        answer_key_outer = self._section_frame(side_frame, "CHỈNH SỬA ĐÁP ÁN BỘ ĐỀ")
+        answer_key_outer.grid(row=1, column=0, sticky="nsew", padx=0, pady=0)
         answer_key_outer.grid_columnconfigure(0, weight=1)
+        answer_key_outer.grid_rowconfigure(2, weight=1)
 
         answer_controls = ctk.CTkFrame(answer_key_outer)
         answer_controls.grid(row=1, column=0, sticky="ew", padx=8, pady=(0, 8))
-        ctk.CTkLabel(answer_controls, text="Đáp án mới").pack(side=tk.LEFT)
+        ctk.CTkLabel(answer_controls, text="Đáp án mới").grid(row=0, column=0, padx=(8, 4), pady=5)
         self.var_new_answer = tk.StringVar()
-        ctk.CTkEntry(answer_controls, textvariable=self.var_new_answer, width=90).pack(side=tk.LEFT, padx=(6, 10))
+        ctk.CTkEntry(answer_controls, textvariable=self.var_new_answer, width=90).grid(row=0, column=1, padx=4, pady=5)
         ctk.CTkButton(
             answer_controls,
             text="Cập nhật đáp án",
             width=130,
             command=self._update_selected_answer,
-        ).pack(side=tk.LEFT)
+        ).grid(row=0, column=2, padx=5, pady=5)
 
         answer_cols = ("Kỳ thi", "Câu", "Đáp án đúng")
         self.tree_answer_key = self._make_treeview(answer_key_outer, answer_cols, row=2, pady=(0, 8))
@@ -392,26 +393,28 @@ class App(ctk.CTk):
     # --- TAB TÌM KIẾM THÍ SINH ---
 
     def _build_tab_search(self):
-        self.tab_search.grid_columnconfigure(0, weight=1)
-        self.tab_search.grid_rowconfigure(1, weight=1)
+        main_frame = ctk.CTkFrame(self.tab_search, fg_color="transparent")
+        main_frame.pack(expand=True, fill="both", padx=5, pady=5)
 
-        search_outer = self._section_frame(self.tab_search, "TÌM KIẾM SINH VIÊN")
-        search_outer.grid(row=0, column=0, sticky="ew", padx=8, pady=(8, 6))
+        search_outer = self._section_frame(main_frame, "TÌM KIẾM SINH VIÊN")
+        search_outer.pack(fill="x", padx=5, pady=(5, 10))
         frame_top = ctk.CTkFrame(search_outer)
         frame_top.grid(row=1, column=0, sticky="ew", padx=8, pady=(0, 8))
+        frame_top.grid_columnconfigure(1, weight=1)
+        frame_top.grid_columnconfigure(3, weight=1)
 
-        ctk.CTkLabel(frame_top, text="MSSV").pack(side=tk.LEFT)
+        ctk.CTkLabel(frame_top, text="MSSV").grid(row=0, column=0, padx=(8, 4), pady=5, sticky="w")
         self.var_search = tk.StringVar()
-        self.entry_search = ctk.CTkEntry(frame_top, textvariable=self.var_search, width=220)
-        self.entry_search.pack(side=tk.LEFT, padx=6)
+        self.entry_search = ctk.CTkEntry(frame_top, textvariable=self.var_search)
+        self.entry_search.grid(row=0, column=1, padx=4, pady=5, sticky="ew")
         self.entry_search.bind("<Return>", lambda e: self._do_search())
         self.entry_search.bind("<KeyRelease>", self._update_search_suggestions)
         self.entry_search.bind("<FocusOut>", lambda _event: self.after(150, self._hide_search_suggestions))
 
-        ctk.CTkLabel(frame_top, text="Họ tên").pack(side=tk.LEFT, padx=(12, 0))
+        ctk.CTkLabel(frame_top, text="Họ tên").grid(row=0, column=2, padx=(12, 4), pady=5, sticky="w")
         self.var_search_name = tk.StringVar()
-        self.entry_search_name = ctk.CTkEntry(frame_top, textvariable=self.var_search_name, width=260)
-        self.entry_search_name.pack(side=tk.LEFT, padx=6)
+        self.entry_search_name = ctk.CTkEntry(frame_top, textvariable=self.var_search_name)
+        self.entry_search_name.grid(row=0, column=3, padx=4, pady=5, sticky="ew")
         self.entry_search_name.bind("<Return>", lambda e: self._do_search())
 
         ctk.CTkButton(
@@ -419,7 +422,7 @@ class App(ctk.CTk):
             text="Tìm kiếm",
             width=96,
             command=self._do_search,
-        ).pack(side=tk.LEFT)
+        ).grid(row=0, column=4, padx=8, pady=5)
 
         self.search_suggestion_box = tk.Listbox(
             search_outer,
@@ -427,28 +430,27 @@ class App(ctk.CTk):
             activestyle="dotbox",
             exportselection=False,
         )
-        self.search_suggestion_box.grid(row=2, column=0, sticky="ew", padx=88, pady=(0, 8))
+        self.search_suggestion_box.grid(row=2, column=0, sticky="ew", padx=8, pady=(0, 8))
         self.search_suggestion_box.bind("<<ListboxSelect>>", self._select_search_suggestion)
         self.search_suggestion_box.bind("<Return>", self._select_search_suggestion)
         self.search_suggestion_box.grid_remove()
 
         self.search_result_text = ctk.CTkTextbox(
-            self.tab_search,
+            main_frame,
             font=("Courier", 12),
             state=tk.DISABLED,
             border_width=1,
         )
-        self.search_result_text.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 8))
+        self.search_result_text.pack(expand=True, fill="both", padx=5, pady=(0, 5))
 
     # --- TAB DANH SÁCH LỚP HỌC PHẦN ---
 
     def _build_tab_class(self):
-        self.tab_class.grid_columnconfigure(0, weight=2)
-        self.tab_class.grid_columnconfigure(1, weight=3)
-        self.tab_class.grid_rowconfigure(0, weight=1)
+        main_frame = ctk.CTkFrame(self.tab_class, fg_color="transparent")
+        main_frame.pack(expand=True, fill="both", padx=5, pady=5)
 
-        class_outer = self._section_frame(self.tab_class, "DANH SÁCH LỚP HỌC PHẦN")
-        class_outer.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
+        class_outer = self._section_frame(main_frame, "DANH SÁCH LỚP HỌC PHẦN")
+        class_outer.pack(expand=True, fill="both", padx=5, pady=(5, 10))
         class_outer.grid_columnconfigure(0, weight=1)
         class_outer.grid_rowconfigure(1, weight=1)
 
@@ -456,8 +458,8 @@ class App(ctk.CTk):
         self.tree_class = self._make_treeview(class_outer, class_cols, row=1, pady=(0, 8))
         self.tree_class.bind("<<TreeviewSelect>>", self._show_class_detail)
 
-        student_outer = self._section_frame(self.tab_class, "SINH VIÊN TRONG LỚP")
-        student_outer.grid(row=0, column=1, sticky="nsew", padx=(0, 8), pady=8)
+        student_outer = self._section_frame(main_frame, "SINH VIÊN TRONG LỚP")
+        student_outer.pack(expand=True, fill="both", padx=5, pady=(0, 5))
         student_outer.grid_columnconfigure(0, weight=1)
         student_outer.grid_rowconfigure(1, weight=1)
 
@@ -828,7 +830,7 @@ class App(ctk.CTk):
 
         values = self.tree_answer_key.item(selection[0], "values")
         exam_id = values[0]
-        question_id = str(values[1]).replace("Câu ", "").strip()
+        question_id = normalize_question_id(values[1])
 
         try:
             self.answer_key.update_answer(exam_id, question_id, new_answer)
