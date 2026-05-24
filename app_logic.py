@@ -633,7 +633,10 @@ def search_students_by_name_prefix(
     if not normalized_prefix:
         return []
 
-    names = student_search_index.name_trie.autocomplete(normalized_prefix, limit=limit)
+    names = student_search_index.name_trie.autocomplete(
+        normalized_prefix,
+        limit=len(student_search_index.all_rows),
+    )
     name_set = HashTable()
     for name in names:
         name_set.put(_normalize_search_text(name), True)

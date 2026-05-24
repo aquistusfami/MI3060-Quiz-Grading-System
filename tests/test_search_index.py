@@ -74,6 +74,17 @@ class StudentSearchIndexTests(unittest.TestCase):
 
         self.assertEqual([(row.student_name, row.exam_id) for row in rows], [("Nguyen An", "EXAM002")])
 
+    def test_name_prefix_search_filters_exam_before_result_limit(self):
+        students = List()
+        students.append(Student("20250001", "Alpha One", {"1": "A"}, exam_id="EXAM001"))
+        students.append(Student("20250002", "Alpha Two", {"1": "B"}, exam_id="EXAM002"))
+        results = grade_all(students, make_answer_key())
+        index = build_student_search_index(results)
+
+        rows = search_students_by_name_prefix(index, "alpha", exam_id="EXAM002", limit=1)
+
+        self.assertEqual([(row.student_name, row.exam_id) for row in rows], [("Alpha Two", "EXAM002")])
+
 
 if __name__ == "__main__":
     unittest.main()
