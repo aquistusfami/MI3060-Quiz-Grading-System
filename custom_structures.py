@@ -21,9 +21,6 @@ class HashNode:
 class HashTable:
     """
     Bảng băm tự cài đặt với cơ chế chuỗi riêng.
-
-    Hàm băm: Polynomial Rolling Hash
-        h = (h * 31 + ord(ch)) % capacity
     """
 
     DEFAULT_CAPACITY = 64
@@ -145,33 +142,6 @@ class HashTable:
             while node:
                 self.put(node.key, node.value)
                 node = node.next
-
-    # Thông tin kiểm tra.
-
-    def load_factor(self) -> float:
-        return self.size / self.capacity
-
-    def collision_info(self) -> dict:
-        """Thống kê va chạm để hiển thị trong báo cáo."""
-        max_chain = 0
-        collisions = 0
-        for bucket in self.buckets:
-            length = 0
-            node = bucket
-            while node:
-                length += 1
-                node = node.next
-            if length > 1:
-                collisions += length - 1
-            if length > max_chain:
-                max_chain = length
-        return {
-            "capacity": self.capacity,
-            "size": self.size,
-            "load_factor": round(self.load_factor(), 3),
-            "collisions": collisions,
-            "max_chain_length": max_chain,
-        }
 
     def __len__(self):
         return self.size
@@ -333,7 +303,7 @@ class MinHeap:
 
     def pop(self):
         if not self._data:
-            raise IndexError("pop from empty MinHeap")
+            raise IndexError("MinHeap: Pop từ đống rỗng")
 
         self._swap(0, len(self._data) - 1)
         item = self._data.pop()
@@ -343,7 +313,7 @@ class MinHeap:
 
     def peek(self):
         if not self._data:
-            raise IndexError("peek from empty MinHeap")
+            raise IndexError("MinHeap: Peek từ đống rỗng")
         return self._data[0]
 
     def _sift_up(self, i: int) -> None:

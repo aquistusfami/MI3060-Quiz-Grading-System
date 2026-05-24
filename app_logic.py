@@ -99,9 +99,6 @@ class AnswerKeyBook:
                 max_count = len(exam_key)
         return max_count
 
-    def collision_info(self) -> dict:
-        return self.exam_keys.collision_info()
-
     def __len__(self):
         return self.size
 
