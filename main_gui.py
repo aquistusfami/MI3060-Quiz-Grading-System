@@ -21,6 +21,8 @@ from app_logic import (
     build_student_search_index,
     search_students_indexed,
     get_student_id_suggestions,
+    get_student_name_suggestions,
+    search_students_by_name_prefix,
     SORT_OPTIONS,
     SORT_CSV_ORDER,
     SORT_SCORE_DESC,
@@ -434,6 +436,8 @@ class App(ctk.CTk):
         self.entry_search_name = ctk.CTkEntry(frame_top, textvariable=self.var_search_name)
         self.entry_search_name.grid(row=0, column=3, padx=4, pady=5, sticky="ew")
         self.entry_search_name.bind("<Return>", lambda e: self._do_search())
+        self.entry_search_name.bind("<KeyRelease>", self._update_search_name_suggestions)
+        self.entry_search_name.bind("<FocusOut>", lambda _event: self.after(150, self._hide_search_suggestions))
 
         ctk.CTkButton(
             frame_top,
@@ -452,6 +456,7 @@ class App(ctk.CTk):
         self.search_suggestion_box.bind("<<ListboxSelect>>", self._select_search_suggestion)
         self.search_suggestion_box.bind("<Return>", self._select_search_suggestion)
         self.search_suggestion_box.grid_remove()
+        self.search_suggestion_target = "mssv"
 
         self.search_result_text = ctk.CTkTextbox(
             main_frame,
@@ -665,6 +670,7 @@ class App(ctk.CTk):
 
         prefix = self.var_search.get().strip()
         suggestions = get_student_id_suggestions(self.student_id_trie, prefix, limit=8)
+        self.search_suggestion_target = "mssv"
 
         self.search_suggestion_box.delete(0, tk.END)
         if not suggestions:
@@ -675,6 +681,25 @@ class App(ctk.CTk):
             self.search_suggestion_box.insert(tk.END, student_id)
         self.search_suggestion_box.grid()
 
+    def _update_search_name_suggestions(self, event=None):
+        if event is not None and event.keysym in ("Return", "Up", "Down", "Escape"):
+            if event.keysym == "Escape":
+                self._hide_search_suggestions()
+            return
+
+        prefix = self.var_search_name.get().strip()
+        suggestions = get_student_name_suggestions(self.student_search_index, prefix, limit=8)
+        self.search_suggestion_target = "name"
+
+        self.search_suggestion_box.delete(0, tk.END)
+        if not suggestions:
+            self._hide_search_suggestions()
+            return
+
+        for student_name in suggestions:
+            self.search_suggestion_box.insert(tk.END, student_name)
+        self.search_suggestion_box.grid()
+
     def _hide_search_suggestions(self):
         self.search_suggestion_box.grid_remove()
 
@@ -683,9 +708,15 @@ class App(ctk.CTk):
         if not selection:
             return
 
-        self.var_search.set(self.search_suggestion_box.get(selection[0]))
+        selected_value = self.search_suggestion_box.get(selection[0])
+        if self.search_suggestion_target == "name":
+            self.var_search_name.set(selected_value)
+            target_entry = self.entry_search_name
+        else:
+            self.var_search.set(selected_value)
+            target_entry = self.entry_search
         self._hide_search_suggestions()
-        self.entry_search.focus_set()
+        target_entry.focus_set()
         if event is not None and getattr(event, "keysym", "") == "Return":
             self._do_search()
 
@@ -706,7 +737,15 @@ class App(ctk.CTk):
                 matches = search_students(self.results, sid, self.var_exam_filter.get())
             query_label = f"MSSV: {sid}"
         else:
-            matches = search_students_by_name(self.results, name_query, self.var_exam_filter.get())
+            if self.student_search_index is not None:
+                matches = search_students_by_name_prefix(
+                    self.student_search_index,
+                    name_query,
+                    self.var_exam_filter.get(),
+                    limit=len(self.student_search_index.all_rows),
+                )
+            else:
+                matches = search_students_by_name(self.results, name_query, self.var_exam_filter.get())
             query_label = f"Họ tên: {name_query}"
 
         self.search_result_text.configure(state=tk.NORMAL)
