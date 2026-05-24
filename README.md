@@ -10,6 +10,9 @@ A desktop application for grading multiple-choice exams from CSV files. The proj
 - Show graded results in CSV order by default, with explicit sorting options for score, correct answers, exam, student ID, and student name.
 - Filter results by score range, exam, and class section.
 - Search student results by student ID or name.
+- Search student results through an indexed lookup by student ID.
+- Suggest student IDs and student names using custom prefix tries.
+- Benchmark core algorithms on the generated performance dataset.
 - View each student's selected answers beside the correct answers.
 - Compute exam-level statistics: average score, highest score, lowest score, standard deviation, pass count, fail count, and pass rate.
 - Compute class-level summaries by exam and class section.
@@ -148,6 +151,12 @@ Output files:
 
 The generated students are distributed across 5 courses and 40 course sections. Their answers are based on a mixed ability distribution, so score statistics are realistic enough for grading, filtering, top-k, question statistics, and export performance tests.
 
+Run algorithm benchmarks:
+
+```bash
+python scripts/benchmark_algorithms.py
+```
+
 ## Output Files
 
 Click `Xuất CSV` after grading to export:
@@ -174,8 +183,10 @@ The project intentionally uses custom implementations instead of relying only on
 - `List`: resizable array for loaded student records.
 - `merge_sort`: stable sorting for user-selected result ordering, rankings, exam lists, score indexes, and summaries.
 - `MinHeap`: finds the hardest questions by lowest correct-answer rate.
+- `StudentSearchIndex`: combines `HashTable` and `PrefixTrie` for indexed student lookup and suggestions.
 - Binary-search-style score range lookup: uses a sorted score index to retrieve students in a score interval.
 - Quick select: retrieves top-k results before sorting only the selected subset.
+- Benchmark script: measures loading, grading, ranking, score range filtering, top-k, question statistics, hardest-question extraction, and indexed search.
 
 ## Grading Formula
 
