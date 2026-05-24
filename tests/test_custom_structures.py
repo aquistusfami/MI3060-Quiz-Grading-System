@@ -48,6 +48,7 @@ class CustomStructureTests(unittest.TestCase):
         items = List(initial_capacity=8)
         for value in range(20):
             items.append(value)
+        grown_capacity = items._capacity
 
         items.insert(1, 99)
         self.assertEqual(items.get(1), 99)
@@ -58,6 +59,7 @@ class CustomStructureTests(unittest.TestCase):
             items.pop()
 
         self.assertEqual(items.to_list(), [0, 1])
+        self.assertLess(items._capacity, grown_capacity)
         self.assertGreaterEqual(items._capacity, 8)
 
     def test_min_heap_returns_items_by_priority(self):
