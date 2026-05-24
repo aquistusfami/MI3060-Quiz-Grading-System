@@ -7,7 +7,7 @@ from custom_structures import merge_sort
 
 
 def normalize_question_id(question_id: str) -> str:
-    """Normalize common question labels to the numeric id used for grading."""
+    """Chuẩn hóa các dạng mã câu hỏi phổ biến để chấm điểm ổn định."""
     value = str(question_id).strip()
     value = re.sub(r"^(câu|cau)\s*", "", value, flags=re.IGNORECASE)
     value = re.sub(r"^q\s*(?=\d)", "", value, flags=re.IGNORECASE)

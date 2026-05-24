@@ -18,6 +18,24 @@ from models import (
 
 DEFAULT_EXAM_ID = "EXAM001"
 
+SORT_CSV_ORDER = "Thứ tự CSV"
+SORT_SCORE_DESC = "Điểm cao đến thấp"
+SORT_SCORE_ASC = "Điểm thấp đến cao"
+SORT_CORRECT_DESC = "Số câu đúng cao đến thấp"
+SORT_STUDENT_ID = "MSSV"
+SORT_STUDENT_NAME = "Họ tên"
+SORT_EXAM_ID = "Kỳ thi"
+
+SORT_OPTIONS = (
+    SORT_CSV_ORDER,
+    SORT_SCORE_DESC,
+    SORT_SCORE_ASC,
+    SORT_CORRECT_DESC,
+    SORT_STUDENT_ID,
+    SORT_STUDENT_NAME,
+    SORT_EXAM_ID,
+)
+
 
 class AnswerKeyBook:
     """Tập đáp án cho nhiều kỳ thi, mỗi kỳ thi có một bảng băm câu hỏi."""
@@ -318,7 +336,12 @@ def grade_all(students: List, answer_key: AnswerKeyBook) -> HashTable:
             question_id_cache.put(student.exam_id, question_ids)
 
         result = grade_student(student, answer_key, question_ids)
-        results.put(_result_key(student.exam_id, student.student_id), result)
+        key = _result_key(student.exam_id, student.student_id)
+        if results.get(key) is not None:
+            raise ValueError(
+                f"Trùng kết quả chấm cho sinh viên {student.student_id} trong kỳ thi {student.exam_id}."
+            )
+        results.put(key, result)
 
     return results
 
@@ -373,6 +396,54 @@ def _result_key(exam_id: str, student_id: str) -> str:
 
 def _question_stat_key(exam_id: str, question_id: str) -> str:
     return f"{_normalize_exam_id(exam_id)}|{normalize_question_id(question_id)}"
+
+
+def build_result_rows_in_student_order(students: List, results: HashTable) -> list:
+    """Tạo danh sách kết quả theo đúng thứ tự thí sinh trong file CSV."""
+    rows = []
+    for student in students:
+        key = _result_key(student.exam_id, student.student_id)
+        result = results.get(key)
+        if result is None:
+            raise ValueError(
+                f"Thiếu kết quả chấm cho sinh viên {student.student_id} trong kỳ thi {student.exam_id}."
+            )
+        rows.append(result)
+    return rows
+
+
+def sort_results(rows: list, sort_option: str) -> list:
+    """Trả về bản sao danh sách kết quả theo tùy chọn sắp xếp đã chọn."""
+    if sort_option == SORT_CSV_ORDER:
+        return rows[:]
+    if sort_option == SORT_SCORE_DESC:
+        return merge_sort(
+            rows,
+            key=lambda r: (r.score, r.correct_count, r.exam_id, r.student_id),
+            reverse=True,
+        )
+    if sort_option == SORT_SCORE_ASC:
+        return merge_sort(
+            rows,
+            key=lambda r: (r.score, r.correct_count, r.exam_id, r.student_id),
+        )
+    if sort_option == SORT_CORRECT_DESC:
+        return merge_sort(
+            rows,
+            key=lambda r: (r.correct_count, r.score, r.exam_id, r.student_id),
+            reverse=True,
+        )
+    if sort_option == SORT_STUDENT_ID:
+        return merge_sort(rows, key=lambda r: (r.student_id, r.exam_id))
+    if sort_option == SORT_STUDENT_NAME:
+        return merge_sort(
+            rows,
+            key=lambda r: (r.student_name.lower(), r.exam_id, r.student_id),
+        )
+    if sort_option == SORT_EXAM_ID:
+        return merge_sort(rows, key=lambda r: (r.exam_id, r.student_id))
+
+    raise ValueError(f"Tùy chọn sắp xếp kết quả không được hỗ trợ: {sort_option}")
 
 
 # --- Xuất kết quả ra CSV ---

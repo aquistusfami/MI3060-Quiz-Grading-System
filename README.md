@@ -7,7 +7,7 @@ A desktop application for grading multiple-choice exams from CSV files. The proj
 - Load answer keys and student submissions from CSV files.
 - Support multiple exams through `exam_id`.
 - Grade every student on a 10-point scale.
-- Show ranking by score, number of correct answers, exam, and student ID.
+- Show graded results in CSV order by default, with explicit sorting options for score, correct answers, exam, student ID, and student name.
 - Filter results by score range, exam, and class section.
 - Search student results by student ID or name.
 - View each student's selected answers beside the correct answers.
@@ -172,7 +172,7 @@ The project intentionally uses custom implementations instead of relying only on
 
 - `HashTable`: separate chaining hash table for answer keys, results, exam metadata, and grouped statistics.
 - `List`: resizable array for loaded student records.
-- `merge_sort`: stable sorting for rankings, exam lists, score indexes, and summaries.
+- `merge_sort`: stable sorting for user-selected result ordering, rankings, exam lists, score indexes, and summaries.
 - `MinHeap`: finds the hardest questions by lowest correct-answer rate.
 - Binary-search-style score range lookup: uses a sorted score index to retrieve students in a score interval.
 - Quick select: retrieves top-k results before sorting only the selected subset.
