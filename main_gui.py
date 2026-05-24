@@ -18,7 +18,8 @@ from app_logic import (
     export_question_stats_csv,
     search_students,
     search_students_by_name,
-    build_student_id_trie,
+    build_student_search_index,
+    search_students_indexed,
     get_student_id_suggestions,
     SORT_OPTIONS,
     SORT_CSV_ORDER,
@@ -76,6 +77,7 @@ class App(ctk.CTk):
         self.display_rows = []
         self.score_index = []
         self.student_id_trie = None
+        self.student_search_index = None
         self.exam_ids = []
         self.class_names = []
 
@@ -542,6 +544,7 @@ class App(ctk.CTk):
             self.display_rows = []
             self.score_index = []
             self.student_id_trie = None
+            self.student_search_index = None
             self.exam_ids = []
             self.class_names = []
             self._load_initial_class_roster()
@@ -572,7 +575,8 @@ class App(ctk.CTk):
             self.result_rows = build_result_rows_in_student_order(self.students, self.results)
             self.display_rows = []
             self.score_index = build_score_index(self.results)
-            self.student_id_trie = build_student_id_trie(self.results)
+            self.student_search_index = build_student_search_index(self.results)
+            self.student_id_trie = self.student_search_index.student_id_trie
             self.exam_ids = get_exam_ids(self.results)
             self.class_names = get_class_names(self.results)
             self.var_exam_filter.set("Tất cả")
@@ -636,7 +640,8 @@ class App(ctk.CTk):
         self.result_rows = build_result_rows_in_student_order(self.students, self.results)
         self.display_rows = []
         self.score_index = build_score_index(self.results)
-        self.student_id_trie = build_student_id_trie(self.results)
+        self.student_search_index = build_student_search_index(self.results)
+        self.student_id_trie = self.student_search_index.student_id_trie
         self.question_stats = compute_question_stats(self.students, self.answer_key)
         self.class_summary = build_class_summary(self.results)
         self.exam_summary = build_exam_summary(
@@ -695,7 +700,10 @@ class App(ctk.CTk):
             return
 
         if sid:
-            matches = search_students(self.results, sid, self.var_exam_filter.get())
+            if self.student_search_index is not None:
+                matches = search_students_indexed(self.student_search_index, sid, self.var_exam_filter.get())
+            else:
+                matches = search_students(self.results, sid, self.var_exam_filter.get())
             query_label = f"MSSV: {sid}"
         else:
             matches = search_students_by_name(self.results, name_query, self.var_exam_filter.get())
