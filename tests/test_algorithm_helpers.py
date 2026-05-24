@@ -27,7 +27,7 @@ def make_answer_key():
 def make_students():
     students = List()
     students.append(Student("S001", "Alpha", {"1": "A", "2": "B", "3": "C"}, exam_id="EXAM001"))
-    students.append(Student("S002", "Beta", {"1": "A", "2": "", "3": "E"}, exam_id="EXAM001"))
+    students.append(Student("S002", "Beta", {"1": "A", "3": "E"}, exam_id="EXAM001"))
     students.append(Student("S003", "Gamma", {"1": "D", "2": "A"}, exam_id="EXAM002"))
     students.append(Student("S004", "Delta", {"1": "D", "2": "C"}, exam_id="EXAM002"))
     return students
