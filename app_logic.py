@@ -37,6 +37,16 @@ SORT_OPTIONS = (
 )
 
 
+class StudentSearchIndex:
+    """Chỉ mục tra cứu sinh viên từ kết quả đã chấm."""
+
+    def __init__(self):
+        self.by_student_id = HashTable()
+        self.student_id_trie = PrefixTrie()
+        self.name_trie = PrefixTrie()
+        self.all_rows = []
+
+
 class AnswerKeyBook:
     """Tập đáp án cho nhiều kỳ thi, mỗi kỳ thi có một bảng băm câu hỏi."""
 
@@ -566,6 +576,99 @@ def build_student_id_trie(results: HashTable) -> PrefixTrie:
         trie.insert(student_id)
 
     return trie
+
+
+def build_student_search_index(results: HashTable) -> StudentSearchIndex:
+    """Tạo chỉ mục tra cứu MSSV và họ tên từ bảng kết quả."""
+    index = StudentSearchIndex()
+    seen_student_ids = HashTable()
+    seen_names = HashTable()
+    rows = merge_sort(
+        results.values(),
+        key=lambda r: (r.student_name.lower(), r.exam_id, r.student_id),
+    )
+    index.all_rows = rows
+
+    for result in rows:
+        student_rows = index.by_student_id.get(result.student_id)
+        if student_rows is None:
+            student_rows = []
+            index.by_student_id.put(result.student_id, student_rows)
+        student_rows.append(result)
+
+        if not seen_student_ids.contains(result.student_id):
+            seen_student_ids.put(result.student_id, True)
+            index.student_id_trie.insert(result.student_id)
+
+        normalized_name = _normalize_search_text(result.student_name)
+        if normalized_name and not seen_names.contains(normalized_name):
+            seen_names.put(normalized_name, result.student_name)
+            index.name_trie.insert(normalized_name, result.student_name)
+
+    return index
+
+
+def search_students_indexed(
+    student_search_index: StudentSearchIndex,
+    student_id: str,
+    exam_id: str | None = None,
+) -> list:
+    """Tra cứu kết quả theo MSSV bằng chỉ mục bảng băm."""
+    rows = student_search_index.by_student_id.get(str(student_id).strip(), [])
+    rows = _filter_results_by_exam(rows, exam_id)
+    return merge_sort(rows, key=lambda r: r.exam_id)
+
+
+def search_students_by_name_prefix(
+    student_search_index: StudentSearchIndex,
+    prefix: str,
+    exam_id: str | None = None,
+    limit: int = 20,
+) -> list:
+    """Tra cứu kết quả theo tiền tố họ tên bằng trie."""
+    if limit <= 0:
+        return []
+
+    normalized_prefix = _normalize_search_text(prefix)
+    if not normalized_prefix:
+        return []
+
+    names = student_search_index.name_trie.autocomplete(normalized_prefix, limit=limit)
+    name_set = HashTable()
+    for name in names:
+        name_set.put(_normalize_search_text(name), True)
+
+    rows = []
+    for result in student_search_index.all_rows:
+        if not name_set.contains(_normalize_search_text(result.student_name)):
+            continue
+        if exam_id and exam_id != "Tất cả" and result.exam_id != exam_id:
+            continue
+        rows.append(result)
+        if len(rows) >= limit:
+            break
+    return rows
+
+
+def get_student_name_suggestions(
+    student_search_index: StudentSearchIndex | None,
+    prefix: str,
+    limit: int = 8,
+) -> list:
+    """Lấy gợi ý họ tên sinh viên theo tiền tố."""
+    if student_search_index is None:
+        return []
+    return student_search_index.name_trie.autocomplete(_normalize_search_text(prefix), limit)
+
+
+def _filter_results_by_exam(rows: list, exam_id: str | None) -> list:
+    if not exam_id or exam_id == "Tất cả":
+        return rows[:]
+    return [result for result in rows if result.exam_id == exam_id]
+
+
+def _normalize_search_text(value: str) -> str:
+    return " ".join(str(value).strip().lower().split())
 
 
 def get_student_id_suggestions(
