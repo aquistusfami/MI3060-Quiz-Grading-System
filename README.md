@@ -1,87 +1,88 @@
-# Multiple-Choice Exam Grading System
+# HỆ THỐNG CHẤM ĐIỂM TRẮC NGHIỆM
 
-A desktop application for grading multiple-choice exams from CSV files. The project is written in Python with a CustomTkinter GUI and uses self-implemented data structures for storage, search, sorting, ranking, and question statistics.
+Bài tập Lớn môn Cấu trúc Dữ liệu và Giải thuật - Đại học Bách Khoa Hà Nội.
 
-## Features
+169306 - MI3060
 
-- Load answer keys and student submissions from CSV files.
-- Support multiple exams through `exam_id`.
-- Grade every student on a 10-point scale.
-- Show graded results in CSV order by default, with explicit sorting options for score, correct answers, exam, student ID, and student name.
-- Filter results by score range, exam, and class section.
-- Search student results by student ID or name.
-- Search student results through an indexed lookup by student ID.
-- Suggest student IDs and student names using custom prefix tries.
-- Benchmark core algorithms on the generated performance dataset.
-- View each student's selected answers beside the correct answers.
-- Compute exam-level statistics: average score, highest score, lowest score, standard deviation, pass count, fail count, and pass rate.
-- Compute class-level summaries by exam and class section.
-- Compute question-level statistics, including correct count, wrong count, and correct percentage.
-- Show the hardest questions using a custom min-heap.
-- Edit an answer key inside the GUI and regrade with the updated answer.
-- Export graded results and question statistics to CSV.
+## 1. Thông tin nhóm sinh viên
 
-## Project Structure
+* Phạm Huệ Chi - 202419036
+* Nguyễn Đăng Hiếu - 202418900
+* Lê Thanh Mai - 202418940
+* Nguyễn Văn Thế - 202418988
+* Phạm Thị Minh Thuý - 202418992
 
-```text
-.
-├── app_logic.py              # CSV loading, grading, statistics, search, export logic
-├── custom_structures.py      # Custom HashTable, List, merge sort, MinHeap
-├── main_gui.py               # CustomTkinter desktop interface
-├── models.py                 # Question, ExamInfo, Student, ExamResult, ExamStatistics
-├── requirements.txt          # Python dependencies
-├── scripts/
-│   └── generate_perf_data.py # Deterministic large CSV dataset generator
-├── data/
-│   ├── answer_key.csv        # Sample answer keys
-│   ├── exams.csv             # Sample exam metadata
-│   └── students.csv          # Sample student submissions
-├── output/
-    ├── results.csv           # Exported grading results
-    └── question_stats.csv    # Exported question statistics
+## 2. Cấu trúc mã nguồn
 
-```
+* `main_gui.py`: Điểm khởi đầu của chương trình, xây dựng cửa sổ CustomTkinter, điều phối thao tác người dùng và gọi các hàm xử lý nghiệp vụ.
+* `app_logic.py`: Chứa logic chính của hệ thống: đọc dữ liệu CSV, kiểm tra dữ liệu đầu vào, chấm điểm, thống kê câu hỏi, xếp hạng, tìm kiếm, lọc kết quả và xuất file.
+* `models.py`: Định nghĩa các lớp dữ liệu như `Question`, `ExamInfo`, `Student`, `ExamResult`.
+* `custom_structures.py`: Chứa các cấu trúc dữ liệu và giải thuật tự cài đặt, gồm `HashTable`, `List`, `CounterArray`, `MinHeap`, `PrefixTrie`, `merge_sort`.
+* `ui/`: Chia nhỏ giao diện thành các module tab độc lập, gồm tab kết quả, danh sách lớp học phần, thống kê câu hỏi, tìm kiếm thí sinh và widget dùng chung.
+* `scripts/generate_perf_data.py`: Sinh bộ dữ liệu lớn để kiểm thử hiệu năng.
+* `scripts/benchmark_algorithms.py`: Đo thời gian thực thi các thao tác chính trên dữ liệu lớn.
+* `tests/`: Chứa các test cho logic chấm điểm, sắp xếp, tìm kiếm, kiểm tra dữ liệu đầu vào và cấu trúc dữ liệu.
+* `data/`: Chứa dữ liệu mẫu của đề thi, đáp án và bài làm sinh viên.
+* `output/`: Chứa kết quả xuất ra sau khi chấm điểm.
+* `requirements.txt`: Danh sách thư viện cần thiết để chạy chương trình.
 
-## Requirements
+## 3. Mô tả tổng quan
 
-- Python 3.10 or newer
-- `customtkinter`
+Chương trình mô phỏng hệ thống chấm điểm trắc nghiệm tự động từ file CSV. Hệ thống phù hợp với bài toán xử lý dữ liệu điểm thi, trong đó dữ liệu đầu vào gồm danh sách đáp án, thông tin kỳ thi và bài làm của sinh viên.
 
-Install dependencies:
+Các chức năng chính:
 
-```bash
-pip install -r requirements.txt
-```
+* **Quản lý dữ liệu kỳ thi và đáp án**: Đọc đáp án theo từng `exam_id`, hỗ trợ nhiều đề thi hoặc nhiều lớp học phần trong cùng hệ thống.
+* **Quản lý bài làm sinh viên**: Đọc danh sách sinh viên, mã lớp học phần, lớp hành chính và câu trả lời từ CSV.
+* **Kiểm tra dữ liệu đầu vào**: Phát hiện thiếu cột bắt buộc, thiếu cột đáp án, trùng MSSV trong cùng kỳ thi, hoặc bài làm không có đáp án tương ứng.
+* **Chấm điểm tự động**: So sánh bài làm với đáp án, tính số câu đúng, câu sai và điểm trên thang 10.
+* **Hiển thị kết quả và xếp hạng**: Giữ thứ tự mặc định theo CSV hoặc sắp xếp theo điểm từ cao xuống thấp, thấp lên cao.
+* **Lọc kết quả**: Lọc theo khoảng điểm, kỳ thi và lớp học phần.
+* **Tra cứu thí sinh**: Tìm kiếm theo MSSV hoặc họ tên, có gợi ý tiền tố bằng cấu trúc Trie.
+* **Thống kê lớp học phần**: Tổng hợp số sinh viên, điểm trung bình và tỷ lệ đạt theo từng lớp học phần.
+* **Thống kê câu hỏi**: Tính số người đúng, sai, bỏ trống và tỷ lệ đúng của từng câu hỏi.
+* **Phân tích câu hỏi khó**: Dùng heap để lấy các câu hỏi có tỷ lệ đúng thấp nhất.
+* **Xuất dữ liệu**: Xuất bảng điểm và thống kê câu hỏi ra file CSV.
 
-## Run the Application
+Dữ liệu của hệ thống được lưu trữ trong các tệp CSV như `answer_key.csv`, `students.csv`, `exams.csv`. Kết quả sau khi xử lý được xuất ra thư mục `output/`.
 
-```bash
-python main_gui.py
-```
+## 4. Cấu trúc dữ liệu và giải thuật sử dụng
 
-The application opens with default CSV paths:
+Dự án ưu tiên tự cài đặt các cấu trúc dữ liệu cốt lõi thay vì chỉ dùng cấu trúc có sẵn của Python.
 
-- `data/answer_key.csv`
-- `data/students.csv`
-- `data/exams.csv`
+| Thành phần | Cấu trúc dữ liệu / giải thuật | Mục đích | Độ phức tạp chính |
+|---|---|---|---|
+| Lưu đáp án và kết quả | `HashTable` | Tra cứu nhanh đáp án theo `exam_id` và `question_id`, tra cứu kết quả theo MSSV | Trung bình `O(1)` |
+| Lưu danh sách sinh viên | `List` | Lưu dữ liệu bài làm theo thứ tự đọc từ CSV | Truy cập `O(1)`, thêm cuối trung bình `O(1)` |
+| Đếm thống kê câu hỏi | `CounterArray` | Đếm số đúng, tổng số lượt trả lời và số câu bỏ trống theo chỉ số câu hỏi | Cập nhật `O(1)` |
+| Sắp xếp kết quả | `merge_sort` | Sắp xếp ổn định theo điểm và các tiêu chí phụ | `O(n log n)` |
+| Gợi ý tìm kiếm | `PrefixTrie` | Gợi ý MSSV và họ tên theo tiền tố | `O(k + m)` |
+| Câu hỏi khó nhất | `MinHeap` | Lấy các câu có tỷ lệ đúng thấp nhất | `O(q log q)` |
+| Lọc khoảng điểm | Chỉ mục điểm + tìm kiếm nhị phân | Truy vấn sinh viên trong khoảng điểm | `O(log n + m)` |
+| Top-k trong benchmark | Quickselect | Lấy k kết quả cao nhất phục vụ đo hiệu năng | Trung bình `O(n)` |
 
-You can choose other answer key and student files from the toolbar, then click `CHẤM ĐIỂM` to grade the exam.
+Trong đó:
 
-## CSV Input Format
+* `n` là số sinh viên.
+* `q` là số câu hỏi.
+* `k` là độ dài tiền tố tìm kiếm.
+* `m` là số kết quả trả về.
 
-### Answer Key
+## 5. Định dạng dữ liệu đầu vào
 
-File: `data/answer_key.csv`
+### 5.1. File đáp án
 
-Required columns:
+File mẫu: `data/answer_key.csv`
 
-| Column | Description | Example |
+Các cột bắt buộc:
+
+| Cột | Ý nghĩa | Ví dụ |
 |---|---|---|
-| `exam_id` | Exam or test identifier | `EXAM001` |
-| `question_id` | Question number | `1` |
-| `correct_answer` | Correct option | `A` |
+| `exam_id` | Mã kỳ thi hoặc mã đề | `EXAM001` |
+| `question_id` | Mã câu hỏi | `1` |
+| `correct_answer` | Đáp án đúng | `A` |
 
-Example:
+Ví dụ:
 
 ```csv
 exam_id,question_id,correct_answer
@@ -90,117 +91,134 @@ EXAM001,2,C
 EXAM001,3,B
 ```
 
-### Students
+### 5.2. File bài làm sinh viên
 
-File: `data/students.csv`
+File mẫu: `data/students.csv`
 
-Common columns:
+Các cột thường dùng:
 
-| Column | Description | Example |
+| Cột | Ý nghĩa | Ví dụ |
 |---|---|---|
-| `exam_id` | Exam or test identifier | `EXAM001` |
-| `ma_hp` | Course code | `MI1111` |
-| `hoc_ky` | Semester | `20251` |
-| `id_lop_hp` | Course class ID | `163613` |
-| `mssv` | Student ID | `20230001` |
-| `ho_ten` | Student name | `Nguyen Van An` |
-| `ma_lop` | Administrative class ID | `23D1` |
-| `ten_lop` | Administrative class name | `Toan Tin K68 - Nhom 1` |
-| `q1`, `q2`, ... | Student answers | `A`, `B`, `C`, `D` |
+| `exam_id` | Mã kỳ thi hoặc mã đề | `EXAM001` |
+| `ma_hp` | Mã học phần | `MI1111` |
+| `hoc_ky` | Học kỳ | `20251` |
+| `id_lop_hp` | ID lớp học phần | `163613` |
+| `mssv` | Mã số sinh viên | `20230001` |
+| `ho_ten` | Họ tên sinh viên | `Nguyen Van An` |
+| `ma_lop` | Mã lớp hành chính | `23D1` |
+| `ten_lop` | Tên lớp hành chính | `Toan Tin K68 - Nhom 1` |
+| `q1`, `q2`, ... | Câu trả lời của sinh viên | `A`, `B`, `C`, `D` |
 
-Example:
+Ví dụ:
 
 ```csv
 exam_id,ma_hp,hoc_ky,id_lop_hp,mssv,ho_ten,ma_lop,ten_lop,q1,q2,q3
 EXAM001,MI1111,20251,163613,20230001,Nguyen Van An,23D1,Toan Tin K68 - Nhom 1,A,C,B
 ```
 
-### Exam Metadata
+### 5.3. File thông tin kỳ thi
 
-File: `data/exams.csv`
+File mẫu: `data/exams.csv`
 
-Common columns:
+Các cột thường dùng:
 
-| Column | Description | Example |
+| Cột | Ý nghĩa | Ví dụ |
 |---|---|---|
-| `exam_id` | Exam or test identifier | `EXAM001` |
-| `ma_hp` | Course code | `MI1111` |
-| `ten_hp` | Course name | `Giai tich 1` |
-| `hoc_ky` | Semester | `20251` |
-| `ten_ky_thi` | Exam name | `Kiem tra trac nghiem MI1111 - dot 1` |
-| `ngay_thi` | Exam date | `2025-10-15` |
-| `thoi_luong_phut` | Duration in minutes | `45` |
-| `ghi_chu` | Note | `Ap dung cho cac lop hoc phan 163613-163615` |
+| `exam_id` | Mã kỳ thi hoặc mã đề | `EXAM001` |
+| `ma_hp` | Mã học phần | `MI1111` |
+| `ten_hp` | Tên học phần | `Giai tich 1` |
+| `hoc_ky` | Học kỳ | `20251` |
+| `ten_ky_thi` | Tên kỳ thi | `Kiem tra trac nghiem MI1111 - dot 1` |
+| `ngay_thi` | Ngày thi | `2025-10-15` |
+| `thoi_luong_phut` | Thời lượng thi | `45` |
+| `ghi_chu` | Ghi chú | `Ap dung cho cac lop hoc phan 163613-163615` |
 
-The app can still run if `exams.csv` is missing. In that case, it infers basic exam entries from the answer key and student data.
-When selected answer/student files live beside an `exams.csv`, the GUI uses that metadata file automatically.
+Nếu thiếu `exams.csv`, chương trình vẫn có thể chạy và tự suy luận thông tin kỳ thi cơ bản từ file đáp án và file bài làm.
 
-## Performance Dataset
+## 6. Hướng dẫn cài đặt và chạy chương trình
 
-Generate a larger deterministic dataset:
+### 6.1. Yêu cầu hệ thống
+
+* Python 3.10 trở lên.
+* Thư viện `customtkinter`.
+
+### 6.2. Cài đặt thư viện
+
+```bash
+pip install -r requirements.txt
+```
+
+### 6.3. Chạy ứng dụng
+
+```bash
+python main_gui.py
+```
+
+Sau khi chạy, chương trình mặc định sử dụng các file:
+
+* `data/answer_key.csv`
+* `data/students.csv`
+* `data/exams.csv`
+
+Người dùng có thể chọn file khác trên thanh công cụ, sau đó bấm `CHẤM ĐIỂM` để xử lý.
+
+## 7. Các màn hình chính
+
+* **Kết quả & Xếp hạng**: Hiển thị bảng điểm, bộ lọc điểm, bộ lọc kỳ thi, bộ lọc lớp học phần và chi tiết đáp án của sinh viên được chọn.
+* **Danh sách lớp HP**: Hiển thị thống kê theo lớp học phần và danh sách sinh viên sau khi chấm điểm.
+* **Thống kê câu hỏi**: Hiển thị số người đúng, sai, bỏ trống, tỷ lệ đúng và top câu hỏi khó.
+* **Tìm kiếm thí sinh**: Tra cứu kết quả theo MSSV hoặc họ tên, hỗ trợ gợi ý bằng Trie.
+
+## 8. Kiểm thử và đo hiệu năng
+
+### 8.1. Chạy bộ kiểm thử
+
+```bash
+python -m unittest discover -s tests
+```
+
+Bộ test kiểm tra các phần chính:
+
+* Cấu trúc dữ liệu `CounterArray`.
+* Tùy chọn sắp xếp kết quả.
+* Tìm kiếm theo tên và MSSV.
+* Kiểm tra dữ liệu đầu vào.
+* Các giao diện đã được tách khỏi `main_gui.py`.
+* Các helper dư thừa đã được loại bỏ.
+
+### 8.2. Sinh dữ liệu lớn
 
 ```bash
 python scripts/generate_perf_data.py
 ```
 
-Output files:
+Dữ liệu hiệu năng được tạo tại `data/performance/`, gồm:
 
-- `data/performance/exams.csv`: 5 exams
-- `data/performance/answer_key.csv`: 500 answer-key rows, 100 questions per exam
-- `data/performance/students.csv`: 10,000 students, 100 answers per student
+* 5 kỳ thi.
+* 100 câu hỏi cho mỗi kỳ thi.
+* 10.000 sinh viên.
 
-The generated students are distributed across 5 courses and 40 course sections. Their answers are based on a mixed ability distribution, so score statistics are realistic enough for grading, filtering, top-k, question statistics, and export performance tests.
-
-Run algorithm benchmarks:
+### 8.3. Chạy benchmark
 
 ```bash
 python scripts/benchmark_algorithms.py
 ```
 
-## Output Files
+Benchmark đo thời gian cho các thao tác như tải dữ liệu, chấm điểm, tạo chỉ mục điểm, sắp xếp xếp hạng, lọc khoảng điểm, thống kê câu hỏi, tìm câu hỏi khó và tìm kiếm sinh viên.
 
-Click `Xuất CSV` after grading to export:
+## 9. Công thức chấm điểm
 
-- `output/results.csv`: ranked student results
-- `output/question_stats.csv`: per-question correct and wrong counts
-
-The exported files use UTF-8 with BOM so spreadsheet applications can open Vietnamese text correctly.
-
-## Main Screens
-
-- `Kết quả & Xếp hạng`: ranking table, score range filter, top-k results, exam/class filters, and answer detail for selected students.
-- `Thống kê tổng hợp`: overall statistics and class summaries.
-- `Thông tin kỳ thi`: exam list and exam details.
-- `Danh sách lớp HP`: class roster summaries and graded students by class section.
-- `Thống kê câu hỏi`: correct rate by question, hardest questions, and answer key editing.
-- `Tìm kiếm thí sinh`: lookup by student ID or name across exams.
-
-## Algorithms and Data Structures
-
-The project intentionally uses custom implementations instead of relying only on Python built-ins:
-
-- `HashTable`: separate chaining hash table for answer keys, results, exam metadata, and grouped statistics.
-- `List`: resizable array for loaded student records.
-- `merge_sort`: stable sorting for user-selected result ordering, rankings, exam lists, score indexes, and summaries.
-- `MinHeap`: finds the hardest questions by lowest correct-answer rate.
-- `StudentSearchIndex`: combines `HashTable` and `PrefixTrie` for indexed student lookup and suggestions.
-- Binary-search-style score range lookup: uses a sorted score index to retrieve students in a score interval.
-- Quick select: retrieves top-k results before sorting only the selected subset.
-- Benchmark script: measures loading, grading, ranking, score range filtering, top-k, question statistics, hardest-question extraction, and indexed search.
-
-## Grading Formula
-
-Each student receives:
+Mỗi sinh viên được chấm theo công thức:
 
 ```text
-score = correct_answers / total_questions * 10
+điểm = số_câu_đúng / tổng_số_câu * 10
 ```
 
-The displayed score is rounded to two decimal places.
+Điểm hiển thị được làm tròn đến hai chữ số thập phân.
 
-## Notes
+## 10. Ghi chú
 
-- Answer values are normalized to uppercase before comparison.
-- Missing student answers are treated as empty and counted as wrong.
-- If `exam_id` is missing, the default exam ID is `EXAM001`.
-- The GUI labels are mainly Vietnamese because the sample data follows a HUST-style exam workflow.
+* Đáp án được chuẩn hóa về chữ in hoa trước khi so sánh.
+* Câu trả lời bị bỏ trống được tính là sai và được thống kê riêng ở phần câu hỏi.
+* Nếu thiếu `exam_id`, hệ thống dùng giá trị mặc định `EXAM001`.
+* File CSV xuất ra dùng mã hóa UTF-8 with BOM để dễ mở bằng các phần mềm bảng tính.
