@@ -14,7 +14,6 @@ from app_logic import (
     get_student_id_suggestions,
     get_student_name_suggestions,
     get_students_in_score_range,
-    get_top_k_results,
     grade_all,
     load_answer_key,
     load_exam_store,
@@ -42,7 +41,6 @@ def main():
     score_index = timed(timings, "Tạo chỉ mục điểm", lambda: build_score_index(results))
     timed(timings, "Sắp xếp xếp hạng", lambda: get_ranking(results))
     timed(timings, "Lọc khoảng điểm", lambda: get_students_in_score_range(score_index, 7.0, 8.5))
-    timed(timings, "Top 100", lambda: get_top_k_results(results, 100))
     question_stats = timed(timings, "Thống kê câu hỏi", lambda: compute_question_stats(students, answer_key))
     timed(timings, "Top câu khó", lambda: get_hardest_questions(question_stats, 20))
     search_index = timed(timings, "Tạo chỉ mục tìm kiếm", lambda: build_student_search_index(results))
