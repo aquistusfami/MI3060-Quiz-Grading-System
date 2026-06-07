@@ -253,46 +253,6 @@ class List:
             return "List:[]"
         return "List:[" + ", ".join(str(item) for item in self) + "]"
 
-
-# --- CounterArray (Mảng đếm tần suất) ---
-
-class CounterArray:
-    """Mảng đếm theo chỉ số nguyên, dùng cho thống kê tần suất O(1)."""
-
-    def __init__(self, size: int):
-        if size < 0:
-            raise ValueError("CounterArray: Kích thước không được âm")
-        self._counts = [0] * size
-
-    def increment(self, index: int, amount: int = 1) -> None:
-        """Tăng bộ đếm tại index."""
-        self._check_index(index)
-        self._counts[index] += amount
-
-    def get(self, index: int) -> int:
-        """Lấy giá trị bộ đếm tại index."""
-        self._check_index(index)
-        return self._counts[index]
-
-    def reset(self) -> None:
-        """Đưa toàn bộ bộ đếm về 0."""
-        for i in range(len(self._counts)):
-            self._counts[i] = 0
-
-    def to_list(self) -> list:
-        return self._counts[:]
-
-    def _check_index(self, index: int) -> None:
-        if not (0 <= index < len(self._counts)):
-            raise IndexError("CounterArray: Chỉ mục ngoài phạm vi")
-
-    def __len__(self):
-        return len(self._counts)
-
-    def __repr__(self):
-        return f"CounterArray({self._counts})"
-
-
 # --- Merge Sort (Sắp xếp trộn tự cài đặt) ---
 
 def merge_sort(arr: list, key=lambda x: x, reverse: bool = False) -> list:
