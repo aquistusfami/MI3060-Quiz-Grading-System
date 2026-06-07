@@ -17,11 +17,10 @@ Bài tập Lớn môn Cấu trúc Dữ liệu và Giải thuật - Đại học 
 * `main_gui.py`: Điểm khởi đầu của chương trình, xây dựng cửa sổ CustomTkinter, điều phối thao tác người dùng và gọi các hàm xử lý nghiệp vụ.
 * `app_logic.py`: Chứa logic chính của hệ thống: đọc dữ liệu CSV, kiểm tra dữ liệu đầu vào, chấm điểm, thống kê câu hỏi, xếp hạng, tìm kiếm, lọc kết quả và xuất file.
 * `models.py`: Định nghĩa các lớp dữ liệu như `Question`, `ExamInfo`, `Student`, `ExamResult`.
-* `custom_structures.py`: Chứa các cấu trúc dữ liệu và giải thuật tự cài đặt, gồm `HashTable`, `List`, `CounterArray`, `MinHeap`, `PrefixTrie`, `merge_sort`.
-* `ui/`: Chia nhỏ giao diện thành các module tab độc lập, gồm tab kết quả, danh sách lớp học phần, thống kê câu hỏi, tìm kiếm thí sinh và widget dùng chung.
+* `custom_structures.py`: Chứa các cấu trúc dữ liệu và giải thuật tự cài đặt, gồm `HashTable`, `List`, `MinHeap`, `PrefixTrie`, `merge_sort`.
+* `ui/`: Chia nhỏ giao diện thành các module tab độc lập, gồm tab kết quả, quản lý đáp án, danh sách lớp học phần, thống kê câu hỏi, tìm kiếm thí sinh và widget dùng chung.
 * `scripts/generate_perf_data.py`: Sinh bộ dữ liệu lớn để kiểm thử hiệu năng.
 * `scripts/benchmark_algorithms.py`: Đo thời gian thực thi các thao tác chính trên dữ liệu lớn.
-* `tests/`: Chứa các test cho logic chấm điểm, sắp xếp, tìm kiếm, kiểm tra dữ liệu đầu vào và cấu trúc dữ liệu.
 * `data/`: Chứa dữ liệu mẫu của đề thi, đáp án và bài làm sinh viên.
 * `output/`: Chứa kết quả xuất ra sau khi chấm điểm.
 * `requirements.txt`: Danh sách thư viện cần thiết để chạy chương trình.
@@ -40,7 +39,7 @@ Các chức năng chính:
 * **Lọc kết quả**: Lọc theo khoảng điểm, kỳ thi và lớp học phần.
 * **Tra cứu thí sinh**: Tìm kiếm theo MSSV hoặc họ tên, có gợi ý tiền tố bằng cấu trúc Trie.
 * **Thống kê lớp học phần**: Tổng hợp số sinh viên, điểm trung bình và tỷ lệ đạt theo từng lớp học phần.
-* **Thống kê câu hỏi**: Tính số người đúng, sai, bỏ trống và tỷ lệ đúng của từng câu hỏi.
+* **Thống kê câu hỏi**: Tính số người đúng, sai và tỷ lệ đúng của từng câu hỏi.
 * **Phân tích câu hỏi khó**: Dùng heap để lấy các câu hỏi có tỷ lệ đúng thấp nhất.
 * **Xuất dữ liệu**: Xuất bảng điểm và thống kê câu hỏi ra file CSV.
 
@@ -54,12 +53,11 @@ Dự án ưu tiên tự cài đặt các cấu trúc dữ liệu cốt lõi thay
 |---|---|---|---|
 | Lưu đáp án và kết quả | `HashTable` | Tra cứu nhanh đáp án theo `exam_id` và `question_id`, tra cứu kết quả theo MSSV | Trung bình `O(1)` |
 | Lưu danh sách sinh viên | `List` | Lưu dữ liệu bài làm theo thứ tự đọc từ CSV | Truy cập `O(1)`, thêm cuối trung bình `O(1)` |
-| Đếm thống kê câu hỏi | `CounterArray` | Đếm số đúng, tổng số lượt trả lời và số câu bỏ trống theo chỉ số câu hỏi | Cập nhật `O(1)` |
+| Đếm thống kê câu hỏi | `HashTable` | Gom nhóm số đúng và tổng lượt trả lời theo kỳ thi, câu hỏi | Trung bình `O(1)` mỗi cập nhật |
 | Sắp xếp kết quả | `merge_sort` | Sắp xếp ổn định theo điểm và các tiêu chí phụ | `O(n log n)` |
 | Gợi ý tìm kiếm | `PrefixTrie` | Gợi ý MSSV và họ tên theo tiền tố | `O(k + m)` |
 | Câu hỏi khó nhất | `MinHeap` | Lấy các câu có tỷ lệ đúng thấp nhất | `O(q log q)` |
 | Lọc khoảng điểm | Chỉ mục điểm + tìm kiếm nhị phân | Truy vấn sinh viên trong khoảng điểm | `O(log n + m)` |
-| Top-k trong benchmark | Quickselect | Lấy k kết quả cao nhất phục vụ đo hiệu năng | Trung bình `O(n)` |
 
 Trong đó:
 
@@ -165,28 +163,14 @@ Người dùng có thể chọn file khác trên thanh công cụ, sau đó bấ
 ## 7. Các màn hình chính
 
 * **Kết quả & Xếp hạng**: Hiển thị bảng điểm, bộ lọc điểm, bộ lọc kỳ thi, bộ lọc lớp học phần và chi tiết đáp án của sinh viên được chọn.
+* **Quản lý đáp án**: Thêm, sửa, xóa, nạp và lưu kho đáp án CSV.
 * **Danh sách lớp HP**: Hiển thị thống kê theo lớp học phần và danh sách sinh viên sau khi chấm điểm.
-* **Thống kê câu hỏi**: Hiển thị số người đúng, sai, bỏ trống, tỷ lệ đúng và top câu hỏi khó.
+* **Thống kê câu hỏi**: Hiển thị số người đúng, sai, tỷ lệ đúng và top câu hỏi khó.
 * **Tìm kiếm thí sinh**: Tra cứu kết quả theo MSSV hoặc họ tên, hỗ trợ gợi ý bằng Trie.
 
 ## 8. Kiểm thử và đo hiệu năng
 
-### 8.1. Chạy bộ kiểm thử
-
-```bash
-python -m unittest discover -s tests
-```
-
-Bộ test kiểm tra các phần chính:
-
-* Cấu trúc dữ liệu `CounterArray`.
-* Tùy chọn sắp xếp kết quả.
-* Tìm kiếm theo tên và MSSV.
-* Kiểm tra dữ liệu đầu vào.
-* Các giao diện đã được tách khỏi `main_gui.py`.
-* Các helper dư thừa đã được loại bỏ.
-
-### 8.2. Sinh dữ liệu lớn
+### 8.1. Sinh dữ liệu lớn
 
 ```bash
 python scripts/generate_perf_data.py
@@ -198,7 +182,7 @@ Dữ liệu hiệu năng được tạo tại `data/performance/`, gồm:
 * 100 câu hỏi cho mỗi kỳ thi.
 * 10.000 sinh viên.
 
-### 8.3. Chạy benchmark
+### 8.2. Chạy benchmark
 
 ```bash
 python scripts/benchmark_algorithms.py
@@ -219,6 +203,6 @@ Mỗi sinh viên được chấm theo công thức:
 ## 10. Ghi chú
 
 * Đáp án được chuẩn hóa về chữ in hoa trước khi so sánh.
-* Câu trả lời bị bỏ trống được tính là sai và được thống kê riêng ở phần câu hỏi.
+* Câu trả lời bị bỏ trống được tính là sai.
 * Nếu thiếu `exam_id`, hệ thống dùng giá trị mặc định `EXAM001`.
 * File CSV xuất ra dùng mã hóa UTF-8 with BOM để dễ mở bằng các phần mềm bảng tính.

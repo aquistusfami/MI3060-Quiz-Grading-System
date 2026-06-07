@@ -11,7 +11,6 @@ from models import (
     ExamInfo,
     Student,
     ExamResult,
-    normalize_question_id,
 )
 
 DEFAULT_EXAM_ID = "EXAM001"
@@ -50,7 +49,6 @@ class AnswerKeyBook:
 
     def put(self, exam_id: str, question: Question) -> None:
         exam_id = _normalize_exam_id(exam_id)
-        question.question_id = normalize_question_id(question.question_id)
         exam_key = self.exam_keys.get(exam_id)
         if exam_key is None:
             exam_key = HashTable()
@@ -69,6 +67,31 @@ class AnswerKeyBook:
     def question_ids(self, exam_id: str) -> list:
         exam_key = self.get_exam_key(exam_id)
         return exam_key.keys() if exam_key is not None else []
+
+    def remove_question(self, exam_id: str, question_id: str) -> bool:
+        exam_id = _normalize_exam_id(exam_id)
+        exam_key = self.get_exam_key(exam_id)
+        if exam_key is None:
+            return False
+
+        removed = exam_key.remove(question_id)
+        if removed:
+            self.size -= 1
+            if len(exam_key) == 0:
+                self.exam_keys.remove(exam_id)
+        return removed
+
+    def remove_exam(self, exam_id: str) -> int:
+        exam_id = _normalize_exam_id(exam_id)
+        exam_key = self.get_exam_key(exam_id)
+        if exam_key is None:
+            return 0
+
+        removed_count = len(exam_key)
+        if self.exam_keys.remove(exam_id):
+            self.size -= removed_count
+            return removed_count
+        return 0
 
     def max_question_count(self) -> int:
         max_count = 0
@@ -127,7 +150,7 @@ def load_exam_store(filepath: str | None = None) -> ExamStore:
     if not filepath or not os.path.exists(filepath):
         return store
 
-    with open(filepath, newline="", encoding="utf-8") as f:
+    with open(filepath, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         for row in reader:
             exam = ExamInfo(
@@ -154,7 +177,7 @@ def load_answer_key(filepath: str) -> AnswerKeyBook:
     """
     answer_key = AnswerKeyBook()
 
-    with open(filepath, newline="", encoding="utf-8") as f:
+    with open(filepath, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         for row in reader:
             exam_id = _get_exam_id(row)
@@ -170,7 +193,7 @@ def load_answer_key(filepath: str) -> AnswerKeyBook:
 
 def validate_answer_key_csv(filepath: str) -> list:
     """Kiểm tra cấu trúc file đáp án trước khi đọc dữ liệu."""
-    with open(filepath, newline="", encoding="utf-8") as f:
+    with open(filepath, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         fieldnames = set(reader.fieldnames or [])
 
@@ -190,7 +213,7 @@ def load_students(filepath: str, num_questions: int | None = None) -> List:
     """
     students = List()
 
-    with open(filepath, newline="", encoding="utf-8") as f:
+    with open(filepath, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         question_columns = [
             col for col in (reader.fieldnames or [])
@@ -223,7 +246,7 @@ def load_students(filepath: str, num_questions: int | None = None) -> List:
 
 def validate_students_csv(filepath: str) -> list:
     """Kiểm tra cấu trúc file thí sinh trước khi đọc dữ liệu."""
-    with open(filepath, newline="", encoding="utf-8") as f:
+    with open(filepath, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         fieldnames = set(reader.fieldnames or [])
 
@@ -443,7 +466,7 @@ def _result_key(exam_id: str, student_id: str) -> str:
 
 
 def _question_stat_key(exam_id: str, question_id: str) -> str:
-    return f"{_normalize_exam_id(exam_id)}|{normalize_question_id(question_id)}"
+    return f"{_normalize_exam_id(exam_id)}|{question_id}"
 
 
 def build_result_rows_in_student_order(students: List, results: HashTable) -> list:
@@ -528,6 +551,27 @@ def export_question_stats_csv(
             wrong = total - correct
             rate = round(correct / total * 100, 1) if total > 0 else 0.0
             writer.writerow([data["exam_id"], f"Cau {data['question_id']}", correct, wrong, rate])
+
+
+def export_answer_key_csv(answer_key: AnswerKeyBook, output_path: str) -> None:
+    """Xuất đáp án hiện tại ra CSV."""
+    directory = os.path.dirname(output_path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+
+    rows = []
+    for exam_id in answer_key.exam_ids():
+        exam_key = answer_key.get_exam_key(exam_id)
+        if exam_key is None:
+            continue
+        for question_id in merge_sort(exam_key.keys(), key=_question_sort_value):
+            question = exam_key.get(question_id)
+            rows.append((exam_id, question.question_id, question.correct_answer))
+
+    with open(output_path, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.writer(f)
+        writer.writerow(["exam_id", "question_id", "correct_answer"])
+        writer.writerows(rows)
 
 
 # --- Hàm tiện ích tìm kiếm, lọc và thống kê ---
@@ -731,11 +775,8 @@ def get_student_answer_items(result: ExamResult, answer_key: AnswerKeyBook) -> l
     return items
 
 
-def _question_sort_value(question_id: str) -> tuple[int, int | str]:
-    question_id = normalize_question_id(question_id)
-    if str(question_id).isdigit():
-        return (0, int(question_id))
-    return (1, str(question_id))
+def _question_sort_value(question_id: str) -> int:
+    return int(question_id)
 
 
 def get_class_names(results: HashTable) -> list:
@@ -827,54 +868,3 @@ def build_class_roster_summary(students: List) -> list:
         groups.values(),
         key=lambda item: (item["exam_id"], item["class_id"]),
     )
-
-
-def get_top_k_results(results: HashTable, k: int) -> list:
-    """Lấy top-k theo điểm bằng quick select, rồi sắp xếp top-k."""
-    arr = results.values()
-    if k <= 0:
-        return []
-    if k >= len(arr):
-        return get_ranking(results)
-
-    cutoff = len(arr) - k
-    _quick_select(arr, 0, len(arr) - 1, cutoff)
-    top_k = arr[cutoff:]
-    return merge_sort(
-        top_k,
-        key=lambda r: (r.score, r.correct_count, r.exam_id, r.student_id),
-        reverse=True,
-    )
-
-
-def _quick_select(arr: list, lo: int, hi: int, target: int) -> None:
-    while lo < hi:
-        left_eq, right_eq = _partition(arr, lo, hi)
-        if left_eq <= target <= right_eq:
-            return
-        if target < left_eq:
-            hi = left_eq - 1
-        else:
-            lo = right_eq + 1
-
-
-def _partition(arr: list, lo: int, hi: int) -> tuple[int, int]:
-    mid = (lo + hi) // 2
-    pivot_key = (arr[mid].score, arr[mid].correct_count, arr[mid].exam_id, arr[mid].student_id)
-    lt = lo
-    i = lo
-    gt = hi
-
-    while i <= gt:
-        item_key = (arr[i].score, arr[i].correct_count, arr[i].exam_id, arr[i].student_id)
-        if item_key < pivot_key:
-            arr[lt], arr[i] = arr[i], arr[lt]
-            lt += 1
-            i += 1
-        elif item_key > pivot_key:
-            arr[i], arr[gt] = arr[gt], arr[i]
-            gt -= 1
-        else:
-            i += 1
-
-    return lt, gt

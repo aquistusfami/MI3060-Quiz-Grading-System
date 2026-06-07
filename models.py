@@ -1,21 +1,6 @@
 # models.py
 # Các lớp dữ liệu của hệ thống.
 
-import re
-
-from custom_structures import merge_sort
-
-
-def normalize_question_id(question_id: str) -> str:
-    """Chuẩn hóa các dạng mã câu hỏi phổ biến để chấm điểm ổn định."""
-    value = str(question_id).strip()
-    value = re.sub(r"^(câu|cau)\s*", "", value, flags=re.IGNORECASE)
-    value = re.sub(r"^q\s*(?=\d)", "", value, flags=re.IGNORECASE)
-    if value.isdigit():
-        return str(int(value))
-    return value
-
-
 def normalize_answer(answer: str) -> str:
     return str(answer).strip().upper()
 
@@ -32,7 +17,7 @@ class Question:
         exam_id: str = "EXAM001",
     ):
         self.exam_id = str(exam_id).strip() or "EXAM001"
-        self.question_id = normalize_question_id(question_id)
+        self.question_id = question_id
         self.correct_answer = normalize_answer(correct_answer)
 
     def __repr__(self):
@@ -94,14 +79,11 @@ class Student:
         self.class_name = class_name.strip() or self.class_id
         self.exam_id = str(exam_id).strip() or "EXAM001"
         # Chuẩn hóa đáp án để so sánh ổn định.
-        self.answers = {
-            normalize_question_id(k): normalize_answer(v)
-            for k, v in answers.items()
-        }
+        self.answers = {k: normalize_answer(v) for k, v in answers.items()}
 
     def get_answer(self, question_id: str) -> str:
         """Lấy đáp án của một câu hỏi; trả về rỗng nếu thiếu."""
-        return self.answers.get(normalize_question_id(question_id), "")
+        return self.answers.get(question_id, "")
 
     def __repr__(self):
         return f"Student(id={self.student_id}, name={self.student_name})"
@@ -160,61 +142,4 @@ class ExamResult:
         return (
             f"ExamResult(id={self.student_id}, "
             f"score={self.score})"
-        )
-
-
-# --- ExamStatistics (Thống kê tổng hợp) ---
-
-class ExamStatistics:
-    """Thống kê tổng hợp cho một tập kết quả."""
-
-    def __init__(self, results: list):
-        """
-        results: danh sách ExamResult
-        """
-        self.results = results
-        self._compute()
-
-    def _compute(self):
-        if not self.results:
-            self.average = 0.0
-            self.max_score = 0.0
-            self.min_score = 0.0
-            self.std_dev = 0.0
-            return
-
-        scores = [r.score for r in self.results]
-        n = len(scores)
-
-        self.average = round(sum(scores) / n, 2)
-        self.max_score = max(scores)
-        self.min_score = min(scores)
-
-        variance = sum((s - self.average) ** 2 for s in scores) / n
-        self.std_dev = round(variance ** 0.5, 2)
-
-    def passing_count(self) -> int:
-        """Số thí sinh đạt từ 5.0 trở lên."""
-        return sum(1 for r in self.results if r.score >= 5.0)
-
-    def failing_count(self) -> int:
-        return len(self.results) - self.passing_count()
-
-    def passing_rate(self) -> float:
-        if not self.results:
-            return 0.0
-        return round(self.passing_count() / len(self.results) * 100, 1)
-
-    def sorted_ranking(self) -> list:
-        """Trả về kết quả đã sắp xếp theo điểm giảm dần."""
-        return merge_sort(
-            self.results,
-            key=lambda r: (r.score, r.correct_count, r.exam_id, r.student_id),
-            reverse=True,
-        )
-
-    def __repr__(self):
-        return (
-            f"ExamStatistics(n={len(self.results)}, "
-            f"avg={self.average}, max={self.max_score}, min={self.min_score})"
         )

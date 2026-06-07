@@ -8,6 +8,7 @@ import os
 import customtkinter as ctk
 
 from app_logic import (
+    AnswerKeyBook,
     load_answer_key,
     load_exam_store,
     load_students,
@@ -19,6 +20,7 @@ from app_logic import (
     compute_question_stats,
     export_results_csv,
     export_question_stats_csv,
+    export_answer_key_csv,
     build_student_search_index,
     search_students_indexed,
     get_student_id_suggestions,
@@ -40,7 +42,8 @@ from app_logic import (
     build_class_summary,
     build_class_roster_summary,
 )
-from models import normalize_question_id
+from models import Question
+from ui.answer_key_tab import build_answer_key_tab
 from ui.class_tab import build_class_tab
 from ui.question_tab import build_question_tab
 from ui.results_tab import build_results_tab
@@ -69,6 +72,8 @@ class App(ctk.CTk):
 
         # Trạng thái dữ liệu.
         self.answer_key = None
+        self.answer_key_dirty = False
+        self.answer_key_source_path = None
         self.exam_store = None
         self.students = None
         self.results = None
@@ -82,6 +87,7 @@ class App(ctk.CTk):
         self.class_names = []
 
         self._build_ui()
+        self._load_initial_answer_key()
         self._load_initial_class_roster()
 
     # --- Xây dựng giao diện ---
@@ -151,11 +157,13 @@ class App(ctk.CTk):
         self.tabview.pack(expand=True, fill="both", padx=10, pady=5)
 
         self.tab_results = self.tabview.add("Kết quả & Xếp hạng")
+        self.tab_answer_key = self.tabview.add("Quản lý đáp án")
         self.tab_class = self.tabview.add("Danh sách lớp HP")
         self.tab_question = self.tabview.add("Thống kê câu hỏi")
         self.tab_search = self.tabview.add("Tìm kiếm thí sinh")
 
         build_results_tab(self)
+        build_answer_key_tab(self)
         build_class_tab(self)
         build_question_tab(self)
         build_search_tab(self)
@@ -204,12 +212,34 @@ class App(ctk.CTk):
             self.class_summary = build_class_roster_summary(self.students)
         self._refresh_class_tab()
 
+    def _load_initial_answer_key(self):
+        answer_path = self.var_answer_path.get()
+        if not os.path.exists(answer_path):
+            self._refresh_answer_key_tab()
+            return
+
+        try:
+            if validate_answer_key_csv(answer_path):
+                self._refresh_answer_key_tab()
+                return
+            self.answer_key = load_answer_key(answer_path)
+            self.answer_key_dirty = False
+            self.answer_key_source_path = answer_path
+        except Exception:
+            self.answer_key = None
+            self.answer_key_dirty = False
+            self.answer_key_source_path = None
+        self._refresh_answer_key_tab()
+
     # --- Xử lý thao tác ---
 
     def _browse_answer(self):
         path = filedialog.askopenfilename(filetypes=[("CSV", "*.csv")])
         if path:
             self.var_answer_path.set(path)
+            self.answer_key_dirty = False
+            self.answer_key_source_path = None
+            self._load_answer_key_for_management()
 
     def _browse_students(self):
         path = filedialog.askopenfilename(filetypes=[("CSV", "*.csv")])
@@ -248,8 +278,17 @@ class App(ctk.CTk):
             self.status_var.set("Đang xử lý...")
             self.update()
 
-            # Đọc dữ liệu.
-            self.answer_key = load_answer_key(answer_path)
+            # Đọc dữ liệu. Nếu đáp án đang được sửa thủ công, dùng bản trong bộ nhớ.
+            if self.answer_key_dirty and self.answer_key is not None:
+                if len(self.answer_key) == 0:
+                    messagebox.showerror("Dữ liệu không hợp lệ", "Kho đáp án đang trống.")
+                    self.status_var.set("Dữ liệu không hợp lệ.")
+                    return
+            else:
+                self.answer_key = load_answer_key(answer_path)
+                self.answer_key_dirty = False
+                self.answer_key_source_path = answer_path
+                self._refresh_answer_key_tab()
             self.exam_store = load_exam_store(self._resolve_exam_metadata_path())
             self.students = load_students(student_path)
             validation_errors = validate_grading_inputs(self.answer_key, self.students)
@@ -314,6 +353,202 @@ class App(ctk.CTk):
             messagebox.showinfo("Thanh cong", f"Da xuat file vao:\n{OUTPUT_DIR}")
         except Exception as e:
             messagebox.showerror("Loi xuat file", str(e))
+
+    def _load_answer_key_for_management(self):
+        answer_path = self.var_answer_path.get()
+        if not os.path.exists(answer_path):
+            messagebox.showerror("Lỗi", f"Không tìm thấy file:\n{answer_path}")
+            return
+
+        try:
+            validation_errors = validate_answer_key_csv(answer_path)
+            if validation_errors:
+                messagebox.showerror("Dữ liệu không hợp lệ", "\n".join(validation_errors))
+                return
+
+            self.answer_key = load_answer_key(answer_path)
+            self.answer_key_dirty = False
+            self.answer_key_source_path = answer_path
+            self._invalidate_grading_outputs()
+            self._refresh_answer_key_tab()
+            self.status_var.set(f"Đã nạp {len(self.answer_key)} đáp án từ CSV.")
+        except Exception as e:
+            messagebox.showerror("Lỗi nạp đáp án", str(e))
+
+    def _save_answer_key_question(self):
+        exam_id = self.var_key_exam_id.get().strip()
+        question_id = self.var_key_question_id.get().strip()
+        correct_answer = self.var_key_answer.get().strip()
+
+        if not exam_id or not question_id or not correct_answer:
+            messagebox.showerror("Dữ liệu không hợp lệ", "Mã đề, câu hỏi và đáp án không được để trống.")
+            return
+
+        if self.answer_key is None:
+            self.answer_key = AnswerKeyBook()
+
+        question = Question(question_id=question_id, correct_answer=correct_answer, exam_id=exam_id)
+        self.answer_key.put(question.exam_id, question)
+        self.answer_key_dirty = True
+        self._invalidate_grading_outputs()
+        self._refresh_answer_key_tab()
+        self._select_answer_key_iid(question.exam_id, question.question_id)
+        self.status_var.set(
+            f"Đã lưu đáp án: {question.exam_id} - Câu {question.question_id} = {question.correct_answer}. Chấm điểm lại để cập nhật kết quả."
+        )
+
+    def _delete_answer_key_question(self):
+        if self.answer_key is None:
+            messagebox.showwarning("Chưa có dữ liệu", "Chưa có kho đáp án để xóa.")
+            return
+
+        exam_id = self.var_key_exam_id.get().strip()
+        question_id = self.var_key_question_id.get().strip()
+        if not exam_id or not question_id:
+            messagebox.showerror("Dữ liệu không hợp lệ", "Chọn hoặc nhập mã đề và câu hỏi cần xóa.")
+            return
+
+        if not messagebox.askyesno("Xác nhận xóa", f"Xóa đáp án câu {question_id} của đề {exam_id}?"):
+            return
+
+        removed = self.answer_key.remove_question(exam_id, question_id)
+        if not removed:
+            messagebox.showwarning("Không tìm thấy", "Không tìm thấy đáp án cần xóa.")
+            return
+
+        self.answer_key_dirty = True
+        self._invalidate_grading_outputs()
+        self._refresh_answer_key_tab()
+        self.status_var.set(f"Đã xóa câu {question_id} của đề {exam_id}.")
+
+    def _delete_answer_key_exam(self):
+        if self.answer_key is None:
+            messagebox.showwarning("Chưa có dữ liệu", "Chưa có kho đáp án để xóa.")
+            return
+
+        exam_id = self.var_key_exam_id.get().strip()
+        if not exam_id:
+            messagebox.showerror("Dữ liệu không hợp lệ", "Nhập mã đề cần xóa.")
+            return
+
+        if not messagebox.askyesno("Xác nhận xóa", f"Xóa toàn bộ đáp án của đề {exam_id}?"):
+            return
+
+        removed_count = self.answer_key.remove_exam(exam_id)
+        if removed_count == 0:
+            messagebox.showwarning("Không tìm thấy", "Không tìm thấy đề cần xóa.")
+            return
+
+        self.answer_key_dirty = True
+        self._invalidate_grading_outputs()
+        self._refresh_answer_key_tab()
+        self.status_var.set(f"Đã xóa đề {exam_id} với {removed_count} câu hỏi.")
+
+    def _save_answer_key_csv(self):
+        if self.answer_key is None or len(self.answer_key) == 0:
+            messagebox.showwarning("Chưa có dữ liệu", "Chưa có đáp án để lưu.")
+            return
+
+        initial_path = self.answer_key_source_path or self.var_answer_path.get() or DEFAULT_ANSWER_KEY
+        path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV", "*.csv")],
+            initialdir=os.path.dirname(initial_path),
+            initialfile=os.path.basename(initial_path),
+        )
+        if not path:
+            return
+
+        try:
+            export_answer_key_csv(self.answer_key, path)
+            self.var_answer_path.set(path)
+            self.answer_key_dirty = False
+            self.answer_key_source_path = path
+            messagebox.showinfo("Thành công", f"Đã lưu đáp án vào:\n{path}")
+            self.status_var.set(f"Đã lưu {len(self.answer_key)} đáp án.")
+        except Exception as e:
+            messagebox.showerror("Lỗi lưu đáp án", str(e))
+
+    def _select_answer_key_row(self, _event=None):
+        selection = self.tree_answer_key.selection()
+        if not selection:
+            return
+
+        values = self.tree_answer_key.item(selection[0], "values")
+        if len(values) < 3:
+            return
+
+        self.var_key_exam_id.set(values[0])
+        self.var_key_question_id.set(values[1])
+        self.var_key_answer.set(values[2])
+
+    def _refresh_answer_key_tab(self):
+        tree = self.tree_answer_key
+        for row in tree.get_children():
+            tree.delete(row)
+
+        if self.answer_key is None:
+            return
+
+        for exam_id in self.answer_key.exam_ids():
+            exam_key = self.answer_key.get_exam_key(exam_id)
+            if exam_key is None:
+                continue
+            question_ids = sorted(exam_key.keys(), key=self._answer_key_question_sort_value)
+            for question_id in question_ids:
+                question = exam_key.get(question_id)
+                iid = self._answer_key_iid(exam_id, question.question_id)
+                tree.insert("", tk.END, iid=iid, values=(
+                    exam_id,
+                    question.question_id,
+                    question.correct_answer,
+                ))
+
+    def _select_answer_key_iid(self, exam_id: str, question_id: str):
+        iid = self._answer_key_iid(exam_id, question_id)
+        if self.tree_answer_key.exists(iid):
+            self.tree_answer_key.selection_set(iid)
+            self.tree_answer_key.see(iid)
+
+    def _answer_key_iid(self, exam_id: str, question_id: str) -> str:
+        return f"{exam_id}|{question_id}"
+
+    def _answer_key_question_sort_value(self, question_id: str):
+        return int(question_id)
+
+    def _invalidate_grading_outputs(self):
+        self.results = None
+        self.question_stats = None
+        self.result_rows = []
+        self.display_rows = []
+        self.score_index = []
+        self.student_search_index = None
+        self.exam_ids = []
+        self.class_names = []
+
+        if hasattr(self, "tree_results"):
+            for row in self.tree_results.get_children():
+                self.tree_results.delete(row)
+        if hasattr(self, "tree_student_answers"):
+            self._clear_student_answer_detail()
+        if hasattr(self, "exam_filter"):
+            self.var_exam_filter.set("Tất cả")
+            self.exam_filter.configure(values=["Tất cả"])
+        if hasattr(self, "class_filter"):
+            self.var_class_filter.set("Tất cả")
+            self.class_filter.configure(values=["Tất cả"])
+        if hasattr(self, "question_exam_filter"):
+            self.var_question_exam_filter.set("Chưa có dữ liệu")
+            self.question_exam_filter.configure(values=["Chưa có dữ liệu"])
+
+        if self.students is not None:
+            self.class_summary = build_class_roster_summary(self.students)
+        else:
+            self.class_summary = []
+        if hasattr(self, "tree_class"):
+            self._refresh_class_tab()
+        if hasattr(self, "tree_question"):
+            self._refresh_question_tab()
 
     def _update_search_suggestions(self, event=None):
         if event is not None and event.keysym in ("Return", "Up", "Down", "Escape"):
@@ -431,10 +666,7 @@ class App(ctk.CTk):
             return "Không có"
 
         def sort_key(question_id):
-            question_id = normalize_question_id(question_id)
-            if str(question_id).isdigit():
-                return (0, int(question_id))
-            return (1, str(question_id))
+            return int(question_id)
 
         return ", ".join(f"Câu {qid}" for qid in sorted(question_ids, key=sort_key))
 
@@ -451,9 +683,6 @@ class App(ctk.CTk):
         self._fill_results_tree(rows)
         if status_text is not None:
             self.status_var.set(status_text)
-
-    def _filter_class(self):
-        self._filter_exam_or_class()
 
     def _filter_exam_or_class(self):
         if self.results is None:

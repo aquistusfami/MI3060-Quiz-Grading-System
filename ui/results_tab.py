@@ -48,7 +48,7 @@ def build_results_tab(app):
         variable=app.var_class_filter,
         values=["Tất cả"],
         width=170,
-        command=lambda _: app._filter_class(),
+        command=lambda _: app._filter_exam_or_class(),
     )
     app.class_filter.grid(row=1, column=1, columnspan=3, padx=4, pady=5, sticky="w")
 
