@@ -77,16 +77,16 @@ Các cột bắt buộc:
 | Cột | Ý nghĩa | Ví dụ |
 |---|---|---|
 | `exam_id` | Mã kỳ thi hoặc mã đề | `EXAM001` |
-| `question_id` | Mã câu hỏi | `1` |
-| `correct_answer` | Đáp án đúng | `A` |
+| `question_id` | Số thứ tự câu hỏi, bắt đầu từ 1 | `1` |
+| `correct_answer` | Đáp án đúng dạng chuỗi tùy chỉnh | `A, E`, `503`, `33.3` |
 
 Ví dụ:
 
 ```csv
 exam_id,question_id,correct_answer
-EXAM001,1,A
-EXAM001,2,C
-EXAM001,3,B
+EXAM001,1,"A, E"
+EXAM001,2,503
+EXAM001,3,33.3
 ```
 
 ### 5.2. File bài làm sinh viên
@@ -105,7 +105,7 @@ Các cột thường dùng:
 | `ho_ten` | Họ tên sinh viên | `Nguyen Van An` |
 | `ma_lop` | Mã lớp hành chính | `23D1` |
 | `ten_lop` | Tên lớp hành chính | `Toan Tin K68 - Nhom 1` |
-| `q1`, `q2`, ... | Câu trả lời của sinh viên | `A`, `B`, `C`, `D` |
+| `q1`, `q2`, ... | Câu trả lời dạng chuỗi tùy chỉnh hoặc để trống | `A, E`, `503`, `33.3` |
 
 Ví dụ:
 
@@ -168,7 +168,7 @@ Người dùng có thể chọn file khác trên thanh công cụ, sau đó bấ
 * **Thống kê câu hỏi**: Hiển thị số người đúng, sai, tỷ lệ đúng và top câu hỏi khó.
 * **Tìm kiếm thí sinh**: Tra cứu kết quả theo MSSV hoặc họ tên, hỗ trợ gợi ý bằng Trie.
 
-## 8. Kiểm thử và đo hiệu năng
+## 8. Dữ liệu và đo hiệu năng
 
 ### 8.1. Sinh dữ liệu lớn
 
@@ -202,7 +202,8 @@ Mỗi sinh viên được chấm theo công thức:
 
 ## 10. Ghi chú
 
-* Đáp án được chuẩn hóa về chữ in hoa trước khi so sánh.
+* Đáp án được giữ nguyên và so sánh chính xác, không tự chuẩn hóa.
+* Giá trị CSV chứa dấu phẩy phải đặt trong dấu ngoặc kép, ví dụ `"A, E"`.
 * Câu trả lời bị bỏ trống được tính là sai.
 * Nếu thiếu `exam_id`, hệ thống dùng giá trị mặc định `EXAM001`.
 * File CSV xuất ra dùng mã hóa UTF-8 with BOM để dễ mở bằng các phần mềm bảng tính.

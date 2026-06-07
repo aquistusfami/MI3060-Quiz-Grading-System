@@ -60,7 +60,7 @@ ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("blue")
 
 
-# --- Ứng dụng chính ---
+# Ứng dụng chính
 
 class App(ctk.CTk):
     def __init__(self):
@@ -90,7 +90,7 @@ class App(ctk.CTk):
         self._load_initial_answer_key()
         self._load_initial_class_roster()
 
-    # --- Xây dựng giao diện ---
+    # Xây dựng giao diện
 
     def _build_ui(self):
         self._configure_ttk_style()
@@ -231,7 +231,7 @@ class App(ctk.CTk):
             self.answer_key_source_path = None
         self._refresh_answer_key_tab()
 
-    # --- Xử lý thao tác ---
+    # Xử lý thao tác
 
     def _browse_answer(self):
         path = filedialog.askopenfilename(filetypes=[("CSV", "*.csv")])
@@ -278,7 +278,7 @@ class App(ctk.CTk):
             self.status_var.set("Đang xử lý...")
             self.update()
 
-            # Đọc dữ liệu. Nếu đáp án đang được sửa thủ công, dùng bản trong bộ nhớ.
+            # Dùng đáp án đang sửa nếu chưa lưu ra file.
             if self.answer_key_dirty and self.answer_key is not None:
                 if len(self.answer_key) == 0:
                     messagebox.showerror("Dữ liệu không hợp lệ", "Kho đáp án đang trống.")
@@ -298,7 +298,6 @@ class App(ctk.CTk):
                 return
             self.exam_store = infer_exam_store(self.answer_key, self.students, self.exam_store)
 
-            # Chấm điểm.
             self.results = grade_all(self.students, self.answer_key)
             self.result_rows = build_result_rows_in_student_order(self.students, self.results)
             self.display_rows = []
@@ -315,11 +314,9 @@ class App(ctk.CTk):
             self.var_question_exam_filter.set(first_exam)
             self.question_exam_filter.configure(values=self.exam_ids or ["Chưa có dữ liệu"])
 
-            # Thống kê câu hỏi.
             self.question_stats = compute_question_stats(self.students, self.answer_key)
             self.class_summary = build_class_summary(self.results)
 
-            # Cập nhật giao diện.
             self._refresh_results_tab()
             self._refresh_class_tab()
             self._refresh_question_tab()
@@ -378,12 +375,18 @@ class App(ctk.CTk):
     def _save_answer_key_question(self):
         exam_id = self.var_key_exam_id.get().strip()
         question_id = self.var_key_question_id.get().strip()
-        correct_answer = self.var_key_answer.get().strip()
+        correct_answer = self.var_key_answer.get()
 
-        if not exam_id or not question_id or not correct_answer:
+        if not exam_id or not question_id or not correct_answer.strip():
             messagebox.showerror("Dữ liệu không hợp lệ", "Mã đề, câu hỏi và đáp án không được để trống.")
             return
-
+        if (
+            not question_id.isdigit()
+            or int(question_id) < 1
+            or question_id != str(int(question_id))
+        ):
+            messagebox.showerror("Dữ liệu không hợp lệ", "Câu hỏi phải có dạng 1, 2, 3, ...")
+            return
         if self.answer_key is None:
             self.answer_key = AnswerKeyBook()
 
@@ -624,13 +627,12 @@ class App(ctk.CTk):
             return
 
         if sid:
-            matches = search_students_indexed(self.student_search_index, sid, self.var_exam_filter.get())
+            matches = search_students_indexed(self.student_search_index, sid)
             query_label = f"MSSV: {sid}"
         else:
             matches = search_students_by_name_prefix(
                 self.student_search_index,
                 name_query,
-                self.var_exam_filter.get(),
                 limit=len(self.student_search_index.all_rows),
             )
             query_label = f"Họ tên: {name_query}"
@@ -770,7 +772,7 @@ class App(ctk.CTk):
         for row in self.tree_student_answers.get_children():
             self.tree_student_answers.delete(row)
 
-    # --- Cập nhật từng tab ---
+    # Cập nhật từng tab
 
     def _refresh_results_tab(self):
         if self.results is None:
@@ -785,12 +787,6 @@ class App(ctk.CTk):
             tree.delete(row)
 
         for pos, r in enumerate(rows, start=1):
-            tag = ""
-            if pos == 1:
-                tag = "gold"
-            elif r.score < 5.0:
-                tag = "fail"
-
             tree.insert("", tk.END, values=(
                 pos,
                 r.exam_id,
@@ -803,10 +799,7 @@ class App(ctk.CTk):
                 r.correct_count,
                 r.total_questions,
                 f"{r.accuracy_percent}%",
-            ), tags=(tag,))
-
-        tree.tag_configure("gold")
-        tree.tag_configure("fail")
+            ))
 
     def _refresh_class_tab(self):
         for row in self.tree_class.get_children():
@@ -894,13 +887,9 @@ class App(ctk.CTk):
             wrong = total - correct
             rate = round(correct / total * 100, 1) if total > 0 else 0.0
 
-            tag = "easy" if rate >= 80 else ("hard" if rate < 40 else "")
             tree.insert("", tk.END, values=(
                 data["exam_id"], f"Câu {data['question_id']}", correct, wrong, f"{rate}%"
-            ), tags=(tag,))
-
-        tree.tag_configure("easy")
-        tree.tag_configure("hard")
+            ))
 
         hardest = [
             item for item in get_hardest_questions(self.question_stats, len(self.question_stats))
@@ -918,7 +907,7 @@ class App(ctk.CTk):
         self.hardest_text.insert(tk.END, "\n".join(lines))
         self.hardest_text.configure(state=tk.DISABLED)
 
-# --- Điểm chạy chương trình ---
+# Chạy chương trình
 
 if __name__ == "__main__":
     app = App()

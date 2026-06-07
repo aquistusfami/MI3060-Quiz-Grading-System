@@ -168,7 +168,7 @@ def load_exam_store(filepath: str | None = None) -> ExamStore:
     return store
 
 
-# --- Đọc dữ liệu từ CSV ---
+# Đọc dữ liệu CSV
 
 def load_answer_key(filepath: str) -> AnswerKeyBook:
     """
@@ -183,7 +183,7 @@ def load_answer_key(filepath: str) -> AnswerKeyBook:
             exam_id = _get_exam_id(row)
             q = Question(
                 question_id=row["question_id"].strip(),
-                correct_answer=row["correct_answer"].strip(),
+                correct_answer=row["correct_answer"],
                 exam_id=exam_id,
             )
             answer_key.put(exam_id, q)
@@ -192,18 +192,44 @@ def load_answer_key(filepath: str) -> AnswerKeyBook:
 
 
 def validate_answer_key_csv(filepath: str) -> list:
-    """Kiểm tra cấu trúc file đáp án trước khi đọc dữ liệu."""
+    """Kiểm tra cột bắt buộc và dữ liệu đáp án."""
     with open(filepath, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         fieldnames = set(reader.fieldnames or [])
+        missing = [
+            column for column in ANSWER_KEY_REQUIRED_COLUMNS
+            if column not in fieldnames
+        ]
+        if missing:
+            return [f"File đáp án thiếu cột bắt buộc: {', '.join(missing)}."]
 
-    missing = [
-        column for column in ANSWER_KEY_REQUIRED_COLUMNS
-        if column not in fieldnames
-    ]
-    if not missing:
-        return []
-    return [f"File đáp án thiếu cột bắt buộc: {', '.join(missing)}."]
+        errors = []
+        seen_questions = set()
+        for line_number, row in enumerate(reader, start=2):
+            exam_id = _get_exam_id(row)
+            question_id = row["question_id"].strip()
+            correct_answer = row["correct_answer"]
+
+            if (
+                not question_id.isdigit()
+                or int(question_id) < 1
+                or question_id != str(int(question_id))
+            ):
+                errors.append(
+                    f"Dòng {line_number}: question_id phải có dạng 1, 2, 3, ..."
+                )
+            if not correct_answer.strip():
+                errors.append(f"Dòng {line_number}: correct_answer không được để trống.")
+
+            question_key = (exam_id, question_id)
+            if question_key in seen_questions:
+                errors.append(
+                    f"Dòng {line_number}: trùng câu {question_id} của kỳ thi {exam_id}."
+                )
+            else:
+                seen_questions.add(question_key)
+
+        return errors
 
 
 def load_students(filepath: str, num_questions: int | None = None) -> List:
@@ -220,7 +246,7 @@ def load_students(filepath: str, num_questions: int | None = None) -> List:
             if col.lower().startswith("q") and col[1:].isdigit()
         ]
         for row in reader:
-            # Lấy đáp án từ các cột q1, q2, ...
+            # Tên cột q1, q2, ... trở thành mã câu 1, 2, ...
             answers = {}
             columns = question_columns
             if num_questions is not None:
@@ -245,25 +271,37 @@ def load_students(filepath: str, num_questions: int | None = None) -> List:
 
 
 def validate_students_csv(filepath: str) -> list:
-    """Kiểm tra cấu trúc file thí sinh trước khi đọc dữ liệu."""
+    """Kiểm tra cột bắt buộc và thông tin thí sinh."""
     with open(filepath, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         fieldnames = set(reader.fieldnames or [])
+        errors = []
+        has_student_id = _has_any_column(fieldnames, STUDENT_ID_COLUMNS)
+        has_student_name = _has_any_column(fieldnames, STUDENT_NAME_COLUMNS)
 
-    errors = []
-    if not _has_any_column(fieldnames, STUDENT_ID_COLUMNS):
-        errors.append(
-            "File thí sinh thiếu cột MSSV. "
-            f"Cần một trong các cột: {', '.join(STUDENT_ID_COLUMNS)}."
-        )
-    if not _has_any_column(fieldnames, STUDENT_NAME_COLUMNS):
-        errors.append(
-            "File thí sinh thiếu cột họ tên. "
-            f"Cần một trong các cột: {', '.join(STUDENT_NAME_COLUMNS)}."
-        )
-    if not any(col.lower().startswith("q") and col[1:].isdigit() for col in fieldnames):
-        errors.append("File thí sinh phải có ít nhất một cột đáp án dạng q1, q2, ...")
-    return errors
+        if not has_student_id:
+            errors.append(
+                "File thí sinh thiếu cột MSSV. "
+                f"Cần một trong các cột: {', '.join(STUDENT_ID_COLUMNS)}."
+            )
+        if not has_student_name:
+            errors.append(
+                "File thí sinh thiếu cột họ tên. "
+                f"Cần một trong các cột: {', '.join(STUDENT_NAME_COLUMNS)}."
+            )
+        if not any(col.lower().startswith("q") and col[1:].isdigit() for col in fieldnames):
+            errors.append("File thí sinh phải có ít nhất một cột đáp án dạng q1, q2, ...")
+
+        if errors:
+            return errors
+
+        for line_number, row in enumerate(reader, start=2):
+            if not _get_student_id(row):
+                errors.append(f"Dòng {line_number}: MSSV không được để trống.")
+            if not _get_student_name(row):
+                errors.append(f"Dòng {line_number}: họ tên không được để trống.")
+
+        return errors
 
 
 def validate_grading_inputs(answer_key: AnswerKeyBook, students: List) -> list:
@@ -352,7 +390,7 @@ def _has_any_column(fieldnames: set, columns: tuple[str, ...]) -> bool:
     return any(column in fieldnames for column in columns)
 
 
-# --- Chấm điểm bài làm ---
+# Chấm điểm
 
 def grade_student(
     student: Student,
@@ -417,7 +455,7 @@ def grade_all(students: List, answer_key: AnswerKeyBook) -> HashTable:
     return results
 
 
-# --- Thống kê câu hỏi ---
+# Thống kê câu hỏi
 
 def compute_question_stats(
     students: List,
@@ -502,11 +540,13 @@ def sort_results(rows: list, sort_option: str) -> list:
     raise ValueError(f"Tùy chọn sắp xếp kết quả không được hỗ trợ: {sort_option}")
 
 
-# --- Xuất kết quả ra CSV ---
+# Xuất CSV
 
 def export_results_csv(results: HashTable, output_path: str) -> None:
     """Xuất kết quả chấm điểm ra CSV."""
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    directory = os.path.dirname(output_path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
 
     all_results = get_ranking(results)
 
@@ -538,7 +578,9 @@ def export_question_stats_csv(
     output_path: str,
 ) -> None:
     """Xuất thống kê câu hỏi ra CSV."""
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    directory = os.path.dirname(output_path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
 
     items = get_question_stats_items(question_stats)
 
@@ -574,7 +616,7 @@ def export_answer_key_csv(answer_key: AnswerKeyBook, output_path: str) -> None:
         writer.writerows(rows)
 
 
-# --- Hàm tiện ích tìm kiếm, lọc và thống kê ---
+# Tìm kiếm, lọc và thống kê
 
 def build_student_search_index(results: HashTable) -> StudentSearchIndex:
     """Tạo chỉ mục tra cứu MSSV và họ tên từ bảng kết quả."""

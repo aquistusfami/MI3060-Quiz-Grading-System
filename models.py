@@ -1,11 +1,7 @@
 # models.py
 # Các lớp dữ liệu của hệ thống.
 
-def normalize_answer(answer: str) -> str:
-    return str(answer).strip().upper()
-
-
-# --- Question (Câu hỏi trong đề thi) ---
+# Câu hỏi
 
 class Question:
     """Đại diện một câu hỏi trong đề thi."""
@@ -18,13 +14,13 @@ class Question:
     ):
         self.exam_id = str(exam_id).strip() or "EXAM001"
         self.question_id = question_id
-        self.correct_answer = normalize_answer(correct_answer)
+        self.correct_answer = correct_answer
 
     def __repr__(self):
         return f"Question(id={self.question_id}, answer={self.correct_answer})"
 
 
-# --- ExamInfo (Thông tin kỳ thi / đề thi) ---
+# Thông tin kỳ thi
 
 class ExamInfo:
     """Thông tin tổng quan của kỳ thi, không lưu nội dung câu hỏi."""
@@ -53,7 +49,7 @@ class ExamInfo:
         return f"ExamInfo(id={self.exam_id}, course={self.course_code})"
 
 
-# --- Student (Thí sinh và bài làm) ---
+# Thí sinh
 
 class Student:
     """Đại diện một thí sinh và bài làm của thí sinh đó."""
@@ -78,8 +74,7 @@ class Student:
         self.admin_class_id = admin_class_id.strip() or "Chưa phân lớp"
         self.class_name = class_name.strip() or self.class_id
         self.exam_id = str(exam_id).strip() or "EXAM001"
-        # Chuẩn hóa đáp án để so sánh ổn định.
-        self.answers = {k: normalize_answer(v) for k, v in answers.items()}
+        self.answers = answers
 
     def get_answer(self, question_id: str) -> str:
         """Lấy đáp án của một câu hỏi; trả về rỗng nếu thiếu."""
@@ -89,7 +84,7 @@ class Student:
         return f"Student(id={self.student_id}, name={self.student_name})"
 
 
-# --- ExamResult (Kết quả chấm điểm) ---
+# Kết quả chấm điểm
 
 class ExamResult:
     """Kết quả chấm điểm của một thí sinh."""
@@ -100,7 +95,7 @@ class ExamResult:
         score: float,
         correct_count: int,
         total_questions: int,
-        wrong_questions: list,   # Danh sách mã câu sai.
+        wrong_questions: list,
     ):
         self.student = student
         self.score = round(score, 2)          # Điểm thang 10.

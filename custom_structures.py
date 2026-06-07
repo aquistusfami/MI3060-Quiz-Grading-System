@@ -2,7 +2,7 @@
 # Các cấu trúc dữ liệu tự cài đặt.
 
 
-# --- Node danh sách liên kết cho bảng băm ---
+# Nút của bảng băm
 
 class HashNode:
     """Node trong chuỗi liên kết của bảng băm."""
@@ -10,28 +10,24 @@ class HashNode:
     def __init__(self, key, value):
         self.key = key
         self.value = value
-        self.next = None  # Node tiếp theo trong cùng bucket.
+        self.next = None
 
     def __repr__(self):
         return f"HashNode({self.key!r}: {self.value!r})"
 
 
-# --- HashTable (Bảng băm với giải quyết xung đột bằng chaining) ---
+# Bảng băm
 
 class HashTable:
-    """
-    Bảng băm tự cài đặt với cơ chế chuỗi riêng.
-    """
+    """Bảng băm dùng danh sách liên kết để xử lý xung đột."""
 
     DEFAULT_CAPACITY = 64
-    LOAD_FACTOR_THRESHOLD = 0.75  # Ngưỡng mở rộng bảng.
+    LOAD_FACTOR_THRESHOLD = 0.75
 
     def __init__(self, capacity: int = DEFAULT_CAPACITY):
         self.capacity = capacity
-        self.size = 0                          # Số cặp key-value đang lưu.
-        self.buckets = [None] * self.capacity  # Mảng bucket.
-
-    # Hàm băm chính.
+        self.size = 0
+        self.buckets = [None] * self.capacity
 
     def _hash(self, key) -> int:
         """Tính hash bằng polynomial rolling hash."""
@@ -40,25 +36,20 @@ class HashTable:
             h = (h * 31 + ord(ch)) % self.capacity
         return h
 
-    # Các thao tác chính.
-
     def put(self, key, value) -> None:
         """Thêm hoặc cập nhật một cặp key-value."""
-        # Mở rộng bảng trước khi vượt ngưỡng tải.
         if self.size / self.capacity >= self.LOAD_FACTOR_THRESHOLD:
             self._resize()
 
         idx = self._hash(key)
         node = self.buckets[idx]
 
-        # Cập nhật nếu key đã tồn tại.
         while node:
             if node.key == key:
                 node.value = value
                 return
             node = node.next
 
-        # Thêm node mới vào đầu chuỗi.
         new_node = HashNode(key, value)
         new_node.next = self.buckets[idx]
         self.buckets[idx] = new_node
@@ -96,8 +87,6 @@ class HashTable:
         """Kiểm tra key có tồn tại hay không."""
         return self.get(key) is not None
 
-    # Duyệt toàn bộ bảng băm.
-
     def keys(self) -> list:
         """Trả về tất cả key."""
         result = []
@@ -128,8 +117,6 @@ class HashTable:
                 node = node.next
         return result
 
-    # Mở rộng khi vượt ngưỡng tải.
-
     def _resize(self) -> None:
         """Tăng gấp đôi dung lượng và hash lại dữ liệu."""
         old_buckets = self.buckets
@@ -150,7 +137,7 @@ class HashTable:
         return f"HashTable(size={self.size}, capacity={self.capacity})"
 
 
-# --- List (Danh sách - Mảng động tùy chỉnh) ---
+# Mảng động
 
 class List:
     """Mảng động tùy chỉnh, tự mở rộng khi hết chỗ."""
@@ -253,7 +240,7 @@ class List:
             return "List:[]"
         return "List:[" + ", ".join(str(item) for item in self) + "]"
 
-# --- Merge Sort (Sắp xếp trộn tự cài đặt) ---
+# Sắp xếp trộn
 
 def merge_sort(arr: list, key=lambda x: x, reverse: bool = False) -> list:
     """Sắp xếp bằng merge sort và trả về list mới."""
@@ -288,10 +275,10 @@ def _merge(left: list, right: list, key, reverse: bool) -> list:
     return result
 
 
-# --- MinHeap (Đống cực tiểu) ---
+# Đống cực tiểu
 
 class MinHeap:
-    """Min-heap tự cài đặt, ưu tiên phần tử có priority nhỏ nhất."""
+    """Đống cực tiểu, lấy phần tử có độ ưu tiên nhỏ nhất trước."""
 
     def __init__(self):
         self._data = []
@@ -309,11 +296,6 @@ class MinHeap:
         if self._data:
             self._sift_down(0)
         return item
-
-    def peek(self):
-        if not self._data:
-            raise IndexError("MinHeap: Peek từ đống rỗng")
-        return self._data[0]
 
     def _sift_up(self, i: int) -> None:
         while i > 0:
@@ -347,10 +329,10 @@ class MinHeap:
         return len(self._data)
 
 
-# --- PrefixTrie (Cây tiền tố cho autocomplete) ---
+# Cây tiền tố
 
 class TrieNode:
-    """Node trong cây tiền tố."""
+    """Nút trong cây tiền tố."""
 
     def __init__(self):
         self.children = HashTable()
@@ -359,7 +341,7 @@ class TrieNode:
 
 
 class PrefixTrie:
-    """Trie dùng cho autocomplete theo tiền tố chuỗi."""
+    """Cây tiền tố dùng để gợi ý chuỗi."""
 
     def __init__(self):
         self.root = TrieNode()
