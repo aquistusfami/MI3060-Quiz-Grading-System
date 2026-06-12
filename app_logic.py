@@ -1,8 +1,12 @@
-# app_logic.py
-# Logic nghiệp vụ: đọc CSV, chấm điểm, thống kê.
-# Không phụ thuộc vào giao diện.
+"""Logic nghiệp vụ cho việc đọc CSV, chấm điểm và tra cứu kết quả.
+
+Module không phụ thuộc giao diện. Dữ liệu được truyền qua tham số và trả về
+dưới dạng model hoặc cấu trúc dữ liệu; chỉ các hàm ``load_*`` và ``export_*``
+thực hiện đọc/ghi file.
+"""
 
 import csv
+import math
 import os
 
 from custom_structures import HashTable, List, MinHeap, PrefixTrie, merge_sort
@@ -13,6 +17,7 @@ from models import (
     ExamResult,
 )
 
+# Giá trị mặc định và nhãn sắp xếp là cấu hình dùng chung giữa logic và GUI.
 DEFAULT_EXAM_ID = "EXAM001"
 
 SORT_CSV_ORDER = "Mặc định theo CSV"
@@ -31,9 +36,10 @@ STUDENT_NAME_COLUMNS = ("ho_ten", "student_name", "name", "full_name")
 
 
 class StudentSearchIndex:
-    """Chỉ mục tra cứu sinh viên từ kết quả đã chấm."""
+    """Gom các bảng băm và Trie phục vụ tra cứu kết quả sinh viên."""
 
     def __init__(self):
+        """Khởi tạo các chỉ mục rỗng; không đọc hoặc thay đổi dữ liệu ngoài."""
         self.by_student_id = HashTable()
         self.student_id_trie = PrefixTrie()
         self.name_trie = PrefixTrie()
@@ -41,13 +47,15 @@ class StudentSearchIndex:
 
 
 class AnswerKeyBook:
-    """Tập đáp án cho nhiều kỳ thi, mỗi kỳ thi có một bảng băm câu hỏi."""
+    """Quản lý đáp án nhiều kỳ thi bằng bảng băm hai cấp."""
 
     def __init__(self):
+        """Khởi tạo kho đáp án rỗng và bộ đếm câu hỏi bằng 0."""
         self.exam_keys = HashTable()
         self.size = 0
 
     def put(self, exam_id: str, question: Question) -> None:
+        """Thêm/cập nhật câu hỏi và duy trì tổng số câu không trùng."""
         exam_id = _normalize_exam_id(exam_id)
         exam_key = self.exam_keys.get(exam_id)
         if exam_key is None:
@@ -59,16 +67,20 @@ class AnswerKeyBook:
         exam_key.put(question.question_id, question)
 
     def get_exam_key(self, exam_id: str) -> HashTable | None:
+        """Trả về bảng đáp án của kỳ thi, hoặc ``None`` nếu chưa có."""
         return self.exam_keys.get(_normalize_exam_id(exam_id))
 
     def exam_ids(self) -> list:
+        """Trả về danh sách mã kỳ thi tăng dần."""
         return merge_sort(self.exam_keys.keys(), key=lambda exam_id: exam_id)
 
     def question_ids(self, exam_id: str) -> list:
+        """Trả về mã câu hỏi của kỳ thi, hoặc danh sách rỗng nếu không có."""
         exam_key = self.get_exam_key(exam_id)
         return exam_key.keys() if exam_key is not None else []
 
     def remove_question(self, exam_id: str, question_id: str) -> bool:
+        """Xóa một câu hỏi và trả về việc câu hỏi có tồn tại hay không."""
         exam_id = _normalize_exam_id(exam_id)
         exam_key = self.get_exam_key(exam_id)
         if exam_key is None:
@@ -82,6 +94,7 @@ class AnswerKeyBook:
         return removed
 
     def remove_exam(self, exam_id: str) -> int:
+        """Xóa toàn bộ kỳ thi và trả về số câu hỏi đã xóa."""
         exam_id = _normalize_exam_id(exam_id)
         exam_key = self.get_exam_key(exam_id)
         if exam_key is None:
@@ -94,6 +107,7 @@ class AnswerKeyBook:
         return 0
 
     def max_question_count(self) -> int:
+        """Trả về số câu lớn nhất trong một kỳ thi, hoặc 0 khi kho rỗng."""
         max_count = 0
         for exam_key in self.exam_keys.values():
             if len(exam_key) > max_count:
@@ -105,18 +119,22 @@ class AnswerKeyBook:
 
 
 class ExamStore:
-    """Kho thông tin kỳ thi, tra cứu O(1) theo exam_id."""
+    """Kho metadata kỳ thi, tra cứu trung bình O(1) theo ``exam_id``."""
 
     def __init__(self):
+        """Khởi tạo kho metadata rỗng."""
         self.exams = HashTable()
 
     def put(self, exam: ExamInfo) -> None:
+        """Thêm hoặc thay thế metadata theo ``exam.exam_id``."""
         self.exams.put(exam.exam_id, exam)
 
     def get(self, exam_id: str) -> ExamInfo | None:
+        """Trả về metadata kỳ thi, hoặc ``None`` nếu chưa có."""
         return self.exams.get(_normalize_exam_id(exam_id))
 
     def ensure(self, exam_id: str) -> ExamInfo:
+        """Trả về metadata hiện có hoặc tạo bản tối thiểu khi còn thiếu."""
         exam_id = _normalize_exam_id(exam_id)
         exam = self.get(exam_id)
         if exam is None:
@@ -129,10 +147,12 @@ class ExamStore:
 
 
 def _normalize_exam_id(exam_id: str) -> str:
+    """Chuẩn hóa mã kỳ thi và thay chuỗi rỗng bằng mã mặc định."""
     return str(exam_id).strip() or DEFAULT_EXAM_ID
 
 
 def _get_exam_id(row: dict) -> str:
+    """Suy ra mã kỳ thi từ các tên cột CSV được hỗ trợ."""
     for col in ("exam_id", "exam", "ma_de", "MaDe", "de_thi"):
         if col in row and row[col].strip():
             return row[col].strip()
@@ -145,7 +165,10 @@ def _get_exam_id(row: dict) -> str:
 
 
 def load_exam_store(filepath: str | None = None) -> ExamStore:
-    """Đọc metadata kỳ thi; trả về kho rỗng nếu chưa có file."""
+    """Đọc metadata kỳ thi từ CSV.
+
+    ``filepath`` có thể rỗng hoặc không tồn tại; khi đó hàm trả về kho rỗng.
+    """
     store = ExamStore()
     if not filepath or not os.path.exists(filepath):
         return store
@@ -192,7 +215,7 @@ def load_answer_key(filepath: str) -> AnswerKeyBook:
 
 
 def validate_answer_key_csv(filepath: str) -> list:
-    """Kiểm tra cột bắt buộc và dữ liệu đáp án."""
+    """Trả về danh sách lỗi cấu trúc/dữ liệu của file đáp án."""
     with open(filepath, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         fieldnames = set(reader.fieldnames or [])
@@ -271,7 +294,7 @@ def load_students(filepath: str, num_questions: int | None = None) -> List:
 
 
 def validate_students_csv(filepath: str) -> list:
-    """Kiểm tra cột bắt buộc và thông tin thí sinh."""
+    """Trả về danh sách lỗi của file sinh viên, gồm cả file rỗng."""
     with open(filepath, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         fieldnames = set(reader.fieldnames or [])
@@ -295,17 +318,22 @@ def validate_students_csv(filepath: str) -> list:
         if errors:
             return errors
 
+        row_count = 0
         for line_number, row in enumerate(reader, start=2):
+            row_count += 1
             if not _get_student_id(row):
                 errors.append(f"Dòng {line_number}: MSSV không được để trống.")
             if not _get_student_name(row):
                 errors.append(f"Dòng {line_number}: họ tên không được để trống.")
 
+        if row_count == 0:
+            errors.append("File thí sinh không có dữ liệu.")
+
         return errors
 
 
 def validate_grading_inputs(answer_key: AnswerKeyBook, students: List) -> list:
-    """Kiểm tra dữ liệu đã đọc trước khi chấm điểm."""
+    """Trả về lỗi liên kết đáp án-sinh viên và MSSV trùng trước khi chấm."""
     errors = []
     if len(answer_key) == 0:
         errors.append("File đáp án không có câu hỏi nào.")
@@ -372,14 +400,17 @@ def _get_admin_class_id(row: dict) -> str:
 
 
 def _get_student_id(row: dict) -> str:
+    """Lấy MSSV từ tên cột đầu tiên được hỗ trợ và có dữ liệu."""
     return _get_first_value(row, ("mssv", "student_id", "student_code"))
 
 
 def _get_student_name(row: dict) -> str:
+    """Lấy họ tên từ tên cột đầu tiên được hỗ trợ và có dữ liệu."""
     return _get_first_value(row, ("ho_ten", "student_name", "name", "full_name"))
 
 
 def _get_first_value(row: dict, columns: tuple[str, ...]) -> str:
+    """Trả về giá trị không rỗng đầu tiên trong các cột ưu tiên."""
     for col in columns:
         if col in row and row[col].strip():
             return row[col].strip()
@@ -387,6 +418,7 @@ def _get_first_value(row: dict, columns: tuple[str, ...]) -> str:
 
 
 def _has_any_column(fieldnames: set, columns: tuple[str, ...]) -> bool:
+    """Kiểm tra header có ít nhất một tên cột được hỗ trợ."""
     return any(column in fieldnames for column in columns)
 
 
@@ -500,10 +532,12 @@ def compute_question_stats(
 
 
 def _result_key(exam_id: str, student_id: str) -> str:
+    """Tạo khóa kết quả duy nhất trong phạm vi kỳ thi."""
     return f"{_normalize_exam_id(exam_id)}|{str(student_id).strip()}"
 
 
 def _question_stat_key(exam_id: str, question_id: str) -> str:
+    """Tạo khóa thống kê duy nhất trong phạm vi kỳ thi."""
     return f"{_normalize_exam_id(exam_id)}|{question_id}"
 
 
@@ -705,12 +739,14 @@ def get_student_name_suggestions(
 
 
 def _filter_results_by_exam(rows: list, exam_id: str | None) -> list:
+    """Trả về bản sao các kết quả thuộc kỳ thi được chọn."""
     if not exam_id or exam_id == "Tất cả":
         return rows[:]
     return [result for result in rows if result.exam_id == exam_id]
 
 
 def _normalize_search_text(value: str) -> str:
+    """Chuẩn hóa chữ thường và khoảng trắng cho khóa tìm kiếm."""
     return " ".join(str(value).strip().lower().split())
 
 
@@ -742,7 +778,21 @@ def build_score_index(results: HashTable) -> list:
     )
 
 
+def parse_score_range(low_value: str, high_value: str) -> tuple[float, float]:
+    """Trả về ``(low, high)`` và từ chối giá trị không phải số hữu hạn."""
+    try:
+        low = float(low_value)
+        high = float(high_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Điểm lọc phải là số.") from exc
+
+    if not math.isfinite(low) or not math.isfinite(high):
+        raise ValueError("Điểm lọc phải là số hữu hạn.")
+    return low, high
+
+
 def _lower_bound_score(score_index: list, target_score: float) -> int:
+    """Trả về vị trí đầu tiên có điểm không nhỏ hơn ``target_score``."""
     lo = 0
     hi = len(score_index)
     while lo < hi:
@@ -818,6 +868,7 @@ def get_student_answer_items(result: ExamResult, answer_key: AnswerKeyBook) -> l
 
 
 def _question_sort_value(question_id: str) -> int:
+    """Chuyển mã câu hỏi hợp lệ thành khóa sắp xếp số."""
     return int(question_id)
 
 

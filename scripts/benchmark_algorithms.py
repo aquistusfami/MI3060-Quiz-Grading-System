@@ -1,7 +1,14 @@
+"""Đo thời gian các thao tác chính trên bộ dữ liệu hiệu năng có sẵn.
+
+Script đọc ba file trong ``data/performance`` và chỉ ghi kết quả đo ra stdout;
+không thay đổi dữ liệu nguồn.
+"""
+
 import os
 import sys
 import time
 
+# Đưa thư mục project vào đường dẫn import khi chạy script trực tiếp.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
 
@@ -29,6 +36,7 @@ EXAMS_PATH = os.path.join(PERF_DIR, "exams.csv")
 
 
 def main():
+    """Chạy toàn bộ benchmark và in thời gian từng thao tác ra stdout."""
     if not os.path.exists(ANSWER_KEY_PATH) or not os.path.exists(STUDENTS_PATH):
         print("Thiếu dữ liệu hiệu năng. Chạy: python scripts/generate_perf_data.py")
         return
@@ -61,6 +69,11 @@ def main():
 
 
 def timed(timings, label, action):
+    """Đo một callable và thêm ``(label, milliseconds)`` vào ``timings``.
+
+    Returns:
+        Giá trị do ``action`` trả về để bước benchmark sau có thể tái sử dụng.
+    """
     start = time.perf_counter()
     result = action()
     elapsed_ms = (time.perf_counter() - start) * 1000

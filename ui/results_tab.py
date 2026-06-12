@@ -1,3 +1,5 @@
+"""Xây dựng tab kết quả, bộ lọc và chi tiết bài làm."""
+
 import tkinter as tk
 
 import customtkinter as ctk
@@ -7,6 +9,12 @@ from ui.widgets import make_treeview, section_frame
 
 
 def build_results_tab(app):
+    """Gắn widget lọc, bảng kết quả và bảng đáp án sinh viên vào ``app``.
+
+    Hàm sử dụng callback của cửa sổ chính và không trả về giá trị. Trạng thái
+    nhập liệu được giữ trong các ``StringVar`` thuộc ``app``.
+    """
+    # Khu điều khiển gom các tiêu chí lọc và sắp xếp kết quả.
     main_frame = ctk.CTkFrame(app.tab_results, fg_color="transparent")
     main_frame.pack(expand=True, fill="both", padx=5, pady=5)
     main_frame.grid_columnconfigure(0, weight=3)
@@ -74,6 +82,7 @@ def build_results_tab(app):
     )
     app.result_sort.grid(row=1, column=9, columnspan=2, padx=4, pady=5, sticky="w")
 
+    # Hai bảng bên dưới lần lượt hiển thị kết quả và chi tiết bài được chọn.
     cols = ("STT", "Kỳ thi", "MSSV", "Họ tên", "ID lớp HP", "Mã lớp SV", "Tên lớp SV", "Điểm", "Số câu đúng", "Tổng câu", "Tỷ lệ %")
     table_outer = section_frame(main_frame, "BẢNG KẾT QUẢ & XẾP HẠNG")
     table_outer.grid(row=1, column=0, sticky="nsew", padx=(5, 5), pady=(0, 5))

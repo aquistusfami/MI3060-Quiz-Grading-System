@@ -24,6 +24,7 @@ Bài tập Lớn môn Cấu trúc Dữ liệu và Giải thuật - Đại học 
 * `data/`: Chứa dữ liệu mẫu của đề thi, đáp án và bài làm sinh viên.
 * `output/`: Chứa kết quả xuất ra sau khi chấm điểm.
 * `requirements.txt`: Danh sách thư viện cần thiết để chạy chương trình.
+* `CODING_CONVENTIONS.md`: Quy ước đặt tên, chú thích, tổ chức hàm và kiểm thử của project.
 
 ## 3. Mô tả tổng quan
 

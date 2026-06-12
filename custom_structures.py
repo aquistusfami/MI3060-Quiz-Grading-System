@@ -1,13 +1,15 @@
-# custom_structures.py
-# Các cấu trúc dữ liệu tự cài đặt.
+"""Các cấu trúc dữ liệu và thuật toán cốt lõi tự cài đặt.
 
+Module không dùng trạng thái toàn cục có thể thay đổi. Mỗi cấu trúc quản lý
+dữ liệu nội bộ của chính nó và báo lỗi bằng ngoại lệ khi thao tác không hợp lệ.
+"""
 
-# Nút của bảng băm
 
 class HashNode:
-    """Node trong chuỗi liên kết của bảng băm."""
+    """Nút liên kết dùng để xử lý xung đột trong một bucket bảng băm."""
 
     def __init__(self, key, value):
+        """Khởi tạo nút với khóa, giá trị và liên kết kế tiếp rỗng."""
         self.key = key
         self.value = value
         self.next = None
@@ -16,15 +18,14 @@ class HashNode:
         return f"HashNode({self.key!r}: {self.value!r})"
 
 
-# Bảng băm
-
 class HashTable:
-    """Bảng băm dùng danh sách liên kết để xử lý xung đột."""
+    """Bảng băm chuỗi liên kết, tự tăng gấp đôi khi tải đạt 0.75."""
 
     DEFAULT_CAPACITY = 64
     LOAD_FACTOR_THRESHOLD = 0.75
 
     def __init__(self, capacity: int = DEFAULT_CAPACITY):
+        """Tạo bảng rỗng với số bucket ban đầu là ``capacity``."""
         self.capacity = capacity
         self.size = 0
         self.buckets = [None] * self.capacity
@@ -137,14 +138,13 @@ class HashTable:
         return f"HashTable(size={self.size}, capacity={self.capacity})"
 
 
-# Mảng động
-
 class List:
-    """Mảng động tùy chỉnh, tự mở rộng khi hết chỗ."""
+    """Mảng động hỗ trợ truy cập chỉ mục và tự tăng/giảm dung lượng."""
 
     _MIN_CAPACITY = 8
 
     def __init__(self, initial_capacity: int = _MIN_CAPACITY):
+        """Tạo danh sách rỗng với dung lượng tối thiểu là 8."""
         self._capacity = max(int(initial_capacity), self._MIN_CAPACITY)
         self._size = 0
         self._elements = [None] * self._capacity
@@ -199,12 +199,15 @@ class List:
         return item
 
     def is_empty(self) -> bool:
+        """Trả về ``True`` khi danh sách không có phần tử."""
         return self._size == 0
 
     def to_list(self) -> list:
+        """Trả về bản sao built-in ``list`` của các phần tử đang lưu."""
         return [self._elements[i] for i in range(self._size)]
 
     def _resize(self, new_capacity: int) -> None:
+        """Cấp phát mảng mới và sao chép các phần tử hiện có."""
         new_capacity = max(new_capacity, self._MIN_CAPACITY)
         new_elements = [None] * new_capacity
         for i in range(self._size):
@@ -213,6 +216,7 @@ class List:
         self._capacity = new_capacity
 
     def _normalize_existing_index(self, index: int) -> int:
+        """Chuẩn hóa chỉ mục âm và từ chối chỉ mục ngoài phạm vi."""
         if index < 0:
             index += self._size
         if not (0 <= index < self._size):
@@ -240,10 +244,14 @@ class List:
             return "List:[]"
         return "List:[" + ", ".join(str(item) for item in self) + "]"
 
-# Sắp xếp trộn
-
 def merge_sort(arr: list, key=lambda x: x, reverse: bool = False) -> list:
-    """Sắp xếp bằng merge sort và trả về list mới."""
+    """Trả về bản sao đã sắp xếp ổn định theo ``key``.
+
+    Args:
+        arr: Danh sách đầu vào; hàm không thay đổi danh sách này.
+        key: Hàm lấy khóa so sánh từ mỗi phần tử.
+        reverse: Sắp xếp giảm dần khi bằng ``True``.
+    """
     if len(arr) <= 1:
         return arr[:]
 
@@ -254,6 +262,7 @@ def merge_sort(arr: list, key=lambda x: x, reverse: bool = False) -> list:
 
 
 def _merge(left: list, right: list, key, reverse: bool) -> list:
+    """Trộn hai danh sách đã sắp xếp và giữ thứ tự của khóa bằng nhau."""
     result = []
     i = 0
     j = 0
@@ -275,19 +284,20 @@ def _merge(left: list, right: list, key, reverse: bool) -> list:
     return result
 
 
-# Đống cực tiểu
-
 class MinHeap:
-    """Đống cực tiểu, lấy phần tử có độ ưu tiên nhỏ nhất trước."""
+    """Đống cực tiểu lưu cặp ``(priority, value)``."""
 
     def __init__(self):
+        """Khởi tạo đống rỗng."""
         self._data = []
 
     def push(self, priority, value) -> None:
+        """Thêm giá trị và khôi phục tính chất đống theo ``priority``."""
         self._data.append((priority, value))
         self._sift_up(len(self._data) - 1)
 
     def pop(self):
+        """Xóa/trả về phần tử ưu tiên nhỏ nhất; lỗi nếu đống rỗng."""
         if not self._data:
             raise IndexError("MinHeap: Pop từ đống rỗng")
 
@@ -298,6 +308,7 @@ class MinHeap:
         return item
 
     def _sift_up(self, i: int) -> None:
+        """Đưa phần tử tại ``i`` lên đến khi không nhỏ hơn nút cha."""
         while i > 0:
             parent = (i - 1) // 2
             if self._data[parent][0] <= self._data[i][0]:
@@ -306,6 +317,7 @@ class MinHeap:
             i = parent
 
     def _sift_down(self, i: int) -> None:
+        """Đưa phần tử tại ``i`` xuống đến khi không lớn hơn nút con."""
         n = len(self._data)
         while True:
             smallest = i
@@ -323,30 +335,32 @@ class MinHeap:
             i = smallest
 
     def _swap(self, i: int, j: int) -> None:
+        """Đổi chỗ hai phần tử trong mảng lưu đống."""
         self._data[i], self._data[j] = self._data[j], self._data[i]
 
     def __len__(self):
         return len(self._data)
 
 
-# Cây tiền tố
-
 class TrieNode:
-    """Nút trong cây tiền tố."""
+    """Nút Trie lưu các nhánh ký tự và giá trị kết thúc khóa."""
 
     def __init__(self):
+        """Khởi tạo nút chưa có nhánh con hoặc giá trị kết thúc."""
         self.children = HashTable()
         self.values = []
         self.is_end = False
 
 
 class PrefixTrie:
-    """Cây tiền tố dùng để gợi ý chuỗi."""
+    """Cây tiền tố không phân biệt hoa/thường dùng cho gợi ý chuỗi."""
 
     def __init__(self):
+        """Khởi tạo Trie với một nút gốc rỗng."""
         self.root = TrieNode()
 
     def insert(self, key: str, value=None) -> None:
+        """Thêm khóa không rỗng và giá trị gợi ý, không lưu giá trị trùng."""
         key = str(key).strip()
         if not key:
             return
@@ -365,6 +379,7 @@ class PrefixTrie:
             current.values.append(final_value)
 
     def autocomplete(self, prefix: str, limit: int = 8) -> list:
+        """Trả về tối đa ``limit`` giá trị có khóa bắt đầu bằng tiền tố."""
         prefix = str(prefix).strip().lower()
         if not prefix or limit <= 0:
             return []
@@ -380,6 +395,7 @@ class PrefixTrie:
         return results
 
     def _collect(self, node: TrieNode, results: list, limit: int) -> None:
+        """Duyệt cây theo thứ tự ký tự và thêm kết quả đến giới hạn."""
         if len(results) >= limit:
             return
 

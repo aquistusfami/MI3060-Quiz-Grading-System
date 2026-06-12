@@ -1,3 +1,5 @@
+"""Xây dựng tab quản lý kho đáp án."""
+
 import tkinter as tk
 
 import customtkinter as ctk
@@ -6,6 +8,12 @@ from ui.widgets import make_treeview, section_frame
 
 
 def build_answer_key_tab(app):
+    """Gắn các widget quản lý đáp án vào trạng thái ``app``.
+
+    Hàm đọc tab cha và callback từ ``app``; không trả về giá trị. Các biến nhập
+    và bảng đáp án được lưu trên ``app`` để lớp cửa sổ cập nhật về sau.
+    """
+    # Khu điều khiển chứa dữ liệu đầu vào và các thao tác với kho đáp án.
     main_frame = ctk.CTkFrame(app.tab_answer_key, fg_color="transparent")
     main_frame.pack(expand=True, fill="both", padx=5, pady=5)
     main_frame.grid_columnconfigure(0, weight=1)
@@ -70,6 +78,7 @@ def build_answer_key_tab(app):
         command=app._save_answer_key_csv,
     ).grid(row=1, column=4, padx=4, pady=5, sticky="w")
 
+    # Bảng bên dưới hiển thị toàn bộ đáp án và phát sự kiện chọn dòng.
     table_outer = section_frame(main_frame, "DANH SÁCH ĐÁP ÁN")
     table_outer.grid(row=1, column=0, sticky="nsew", padx=5, pady=(0, 5))
     table_outer.grid_columnconfigure(0, weight=1)

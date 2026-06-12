@@ -1,3 +1,5 @@
+"""Xây dựng tab thống kê độ khó câu hỏi."""
+
 import tkinter as tk
 
 import customtkinter as ctk
@@ -6,6 +8,12 @@ from ui.widgets import make_treeview, section_frame
 
 
 def build_question_tab(app):
+    """Gắn bộ lọc đề thi, bảng thống kê và vùng câu khó vào ``app``.
+
+    Hàm không trả về giá trị; callback đổi đề gọi lại phương thức làm mới của
+    cửa sổ chính.
+    """
+    # Cột trái chứa bộ lọc kỳ thi và thống kê từng câu.
     main_frame = ctk.CTkFrame(app.tab_question, fg_color="transparent")
     main_frame.pack(expand=True, fill="both", padx=5, pady=5)
     main_frame.grid_columnconfigure(0, weight=3)
@@ -33,6 +41,7 @@ def build_question_tab(app):
     cols = ("Kỳ thi", "Câu hỏi", "Số người đúng", "Số người sai", "Tỷ lệ đúng %")
     app.tree_question = make_treeview(question_outer, cols, row=2, pady=(0, 6))
 
+    # Cột phải trình bày danh sách câu có tỷ lệ đúng thấp nhất.
     side_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
     side_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 5), pady=5)
     side_frame.grid_columnconfigure(0, weight=1)

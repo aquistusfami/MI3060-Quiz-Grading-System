@@ -1,5 +1,9 @@
-# main_gui.py
-# Giao diện người dùng với CustomTkinter.
+"""Cửa sổ CustomTkinter điều phối thao tác của hệ thống chấm điểm.
+
+Lớp ``App`` sở hữu trạng thái phiên làm việc của giao diện. Mọi tính toán dữ
+liệu được chuyển cho ``app_logic``; module này chỉ đọc giá trị widget, cập nhật
+widget và hiển thị thông báo cho người dùng.
+"""
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
@@ -31,6 +35,7 @@ from app_logic import (
     build_result_rows_in_student_order,
     sort_results,
     build_score_index,
+    parse_score_range,
     get_students_in_score_range,
     get_hardest_questions,
     get_question_stats_items,
@@ -49,7 +54,7 @@ from ui.question_tab import build_question_tab
 from ui.results_tab import build_results_tab
 from ui.search_tab import build_search_tab
 
-# Đường dẫn mặc định.
+# Các đường dẫn mặc định được tính từ thư mục mã nguồn để không phụ thuộc cwd.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_ANSWER_KEY = os.path.join(BASE_DIR, "data", "answer_key.csv")
 DEFAULT_STUDENTS = os.path.join(BASE_DIR, "data", "students.csv")
@@ -60,10 +65,11 @@ ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("blue")
 
 
-# Ứng dụng chính
-
 class App(ctk.CTk):
+    """Cửa sổ chính và trạng thái hiện tại của phiên chấm điểm."""
+
     def __init__(self):
+        """Khởi tạo trạng thái ứng dụng, widget và dữ liệu mặc định."""
         super().__init__()
         self.title("Hệ thống Chấm Điểm Trắc Nghiệm")
         self.geometry("1280x850")
@@ -93,6 +99,7 @@ class App(ctk.CTk):
     # Xây dựng giao diện
 
     def _build_ui(self):
+        """Tạo thanh công cụ, các tab và biến trạng thái hiển thị."""
         self._configure_ttk_style()
 
         header = ctk.CTkFrame(self)
@@ -179,6 +186,7 @@ class App(ctk.CTk):
         status.pack(fill="x", padx=10, pady=(0, 6))
 
     def _configure_ttk_style(self):
+        """Áp dụng kiểu hiển thị chung cho mọi Treeview trong ứng dụng."""
         style = ttk.Style(self)
         style.theme_use("clam")
         style.configure(
@@ -195,6 +203,7 @@ class App(ctk.CTk):
         )
 
     def _load_initial_class_roster(self):
+        """Đọc file sinh viên hiện tại và cập nhật danh sách lớp ban đầu."""
         student_path = self.var_student_path.get()
         try:
             self.exam_store = load_exam_store(self._resolve_exam_metadata_path())
@@ -213,6 +222,7 @@ class App(ctk.CTk):
         self._refresh_class_tab()
 
     def _load_initial_answer_key(self):
+        """Nạp kho đáp án mặc định nếu file tồn tại và hợp lệ."""
         answer_path = self.var_answer_path.get()
         if not os.path.exists(answer_path):
             self._refresh_answer_key_tab()
@@ -234,6 +244,7 @@ class App(ctk.CTk):
     # Xử lý thao tác
 
     def _browse_answer(self):
+        """Chọn file đáp án và nạp file đó vào tab quản lý."""
         path = filedialog.askopenfilename(filetypes=[("CSV", "*.csv")])
         if path:
             self.var_answer_path.set(path)
@@ -242,6 +253,7 @@ class App(ctk.CTk):
             self._load_answer_key_for_management()
 
     def _browse_students(self):
+        """Chọn file sinh viên, xóa kết quả cũ và cập nhật danh sách lớp."""
         path = filedialog.askopenfilename(filetypes=[("CSV", "*.csv")])
         if path:
             self.var_student_path.set(path)
@@ -256,6 +268,11 @@ class App(ctk.CTk):
             self._load_initial_class_roster()
 
     def _run_grading(self):
+        """Validate file đầu vào, chấm toàn bộ bài và làm mới các tab.
+
+        Hàm đọc đường dẫn từ widget, có thể đọc ba file CSV và cập nhật toàn bộ
+        trạng thái kết quả của cửa sổ. Lỗi dữ liệu được hiển thị qua messagebox.
+        """
         answer_path = self.var_answer_path.get()
         student_path = self.var_student_path.get()
 
@@ -331,6 +348,7 @@ class App(ctk.CTk):
             self.status_var.set("Co loi xay ra.")
 
     def _resolve_exam_metadata_path(self):
+        """Trả về file ``exams.csv`` gần dữ liệu đang chọn hoặc file mặc định."""
         for data_path in (self.var_answer_path.get(), self.var_student_path.get()):
             candidate = os.path.join(os.path.dirname(data_path), "exams.csv")
             if os.path.exists(candidate):
@@ -338,6 +356,7 @@ class App(ctk.CTk):
         return DEFAULT_EXAMS
 
     def _export(self):
+        """Ghi kết quả và thống kê hiện tại vào thư mục ``output``."""
         if self.results is None:
             messagebox.showwarning("Chưa có dữ liệu", "Vui lòng chấm điểm trước.")
             return
@@ -352,6 +371,7 @@ class App(ctk.CTk):
             messagebox.showerror("Loi xuat file", str(e))
 
     def _load_answer_key_for_management(self):
+        """Validate và nạp file đáp án đang chọn vào trạng thái chỉnh sửa."""
         answer_path = self.var_answer_path.get()
         if not os.path.exists(answer_path):
             messagebox.showerror("Lỗi", f"Không tìm thấy file:\n{answer_path}")
@@ -373,6 +393,7 @@ class App(ctk.CTk):
             messagebox.showerror("Lỗi nạp đáp án", str(e))
 
     def _save_answer_key_question(self):
+        """Thêm hoặc cập nhật một đáp án từ ba ô nhập trên giao diện."""
         exam_id = self.var_key_exam_id.get().strip()
         question_id = self.var_key_question_id.get().strip()
         correct_answer = self.var_key_answer.get()
@@ -401,6 +422,7 @@ class App(ctk.CTk):
         )
 
     def _delete_answer_key_question(self):
+        """Xóa câu hỏi đang chọn sau khi người dùng xác nhận."""
         if self.answer_key is None:
             messagebox.showwarning("Chưa có dữ liệu", "Chưa có kho đáp án để xóa.")
             return
@@ -425,6 +447,7 @@ class App(ctk.CTk):
         self.status_var.set(f"Đã xóa câu {question_id} của đề {exam_id}.")
 
     def _delete_answer_key_exam(self):
+        """Xóa toàn bộ đáp án của kỳ thi đang chọn sau khi xác nhận."""
         if self.answer_key is None:
             messagebox.showwarning("Chưa có dữ liệu", "Chưa có kho đáp án để xóa.")
             return
@@ -448,6 +471,7 @@ class App(ctk.CTk):
         self.status_var.set(f"Đã xóa đề {exam_id} với {removed_count} câu hỏi.")
 
     def _save_answer_key_csv(self):
+        """Ghi kho đáp án đang chỉnh sửa tới file CSV do người dùng chọn."""
         if self.answer_key is None or len(self.answer_key) == 0:
             messagebox.showwarning("Chưa có dữ liệu", "Chưa có đáp án để lưu.")
             return
@@ -473,6 +497,7 @@ class App(ctk.CTk):
             messagebox.showerror("Lỗi lưu đáp án", str(e))
 
     def _select_answer_key_row(self, _event=None):
+        """Đưa dữ liệu dòng đáp án được chọn trở lại các ô nhập."""
         selection = self.tree_answer_key.selection()
         if not selection:
             return
@@ -486,6 +511,7 @@ class App(ctk.CTk):
         self.var_key_answer.set(values[2])
 
     def _refresh_answer_key_tab(self):
+        """Vẽ lại bảng đáp án từ ``self.answer_key`` hiện tại."""
         tree = self.tree_answer_key
         for row in tree.get_children():
             tree.delete(row)
@@ -508,18 +534,22 @@ class App(ctk.CTk):
                 ))
 
     def _select_answer_key_iid(self, exam_id: str, question_id: str):
+        """Chọn và cuộn đến một dòng đáp án theo kỳ thi và câu hỏi."""
         iid = self._answer_key_iid(exam_id, question_id)
         if self.tree_answer_key.exists(iid):
             self.tree_answer_key.selection_set(iid)
             self.tree_answer_key.see(iid)
 
     def _answer_key_iid(self, exam_id: str, question_id: str) -> str:
+        """Tạo định danh Treeview ổn định cho một câu hỏi."""
         return f"{exam_id}|{question_id}"
 
     def _answer_key_question_sort_value(self, question_id: str):
+        """Chuyển mã câu hỏi đã validate thành khóa sắp xếp số nguyên."""
         return int(question_id)
 
     def _invalidate_grading_outputs(self):
+        """Xóa mọi kết quả phụ thuộc vào kho đáp án vừa thay đổi."""
         self.results = None
         self.question_stats = None
         self.result_rows = []
@@ -554,6 +584,7 @@ class App(ctk.CTk):
             self._refresh_question_tab()
 
     def _update_search_suggestions(self, event=None):
+        """Cập nhật gợi ý MSSV theo nội dung ô tìm kiếm hiện tại."""
         if event is not None and event.keysym in ("Return", "Up", "Down", "Escape"):
             if event.keysym == "Escape":
                 self._hide_search_suggestions()
@@ -578,6 +609,7 @@ class App(ctk.CTk):
         self.search_suggestion_box.grid()
 
     def _update_search_name_suggestions(self, event=None):
+        """Cập nhật gợi ý họ tên theo nội dung ô tìm kiếm hiện tại."""
         if event is not None and event.keysym in ("Return", "Up", "Down", "Escape"):
             if event.keysym == "Escape":
                 self._hide_search_suggestions()
@@ -597,9 +629,11 @@ class App(ctk.CTk):
         self.search_suggestion_box.grid()
 
     def _hide_search_suggestions(self):
+        """Ẩn danh sách gợi ý tìm kiếm dùng chung."""
         self.search_suggestion_box.grid_remove()
 
     def _select_search_suggestion(self, event=None):
+        """Chép gợi ý được chọn vào đúng ô tìm kiếm và thực hiện tra cứu."""
         selection = self.search_suggestion_box.curselection()
         if not selection:
             return
@@ -617,6 +651,7 @@ class App(ctk.CTk):
             self._do_search()
 
     def _do_search(self):
+        """Tra cứu theo MSSV hoặc tiền tố họ tên và hiển thị kết quả."""
         if self.results is None:
             messagebox.showwarning("Chưa có dữ liệu", "Vui lòng chấm điểm trước.")
             return
@@ -664,29 +699,35 @@ class App(ctk.CTk):
         self.search_result_text.configure(state=tk.DISABLED)
 
     def _format_wrong_questions(self, question_ids: list) -> str:
+        """Trả về chuỗi mã câu sai đã sắp xếp để hiển thị."""
         if not question_ids:
             return "Không có"
 
         def sort_key(question_id):
+            """Chuyển mã câu hỏi thành khóa số để sắp xếp."""
             return int(question_id)
 
         return ", ".join(f"Câu {qid}" for qid in sorted(question_ids, key=sort_key))
 
     def _apply_result_filters(self, rows: list) -> list:
+        """Lọc ``rows`` theo kỳ thi và lớp đang chọn, không đổi danh sách gốc."""
         rows = get_results_by_exam(rows, self.var_exam_filter.get())
         rows = get_results_by_class(rows, self.var_class_filter.get())
         return rows
 
     def _sort_result_rows_for_display(self, rows: list) -> list:
+        """Trả về bản sao ``rows`` theo tùy chọn sắp xếp của giao diện."""
         return sort_results(rows, self.var_result_sort.get())
 
     def _display_result_rows(self, rows: list, status_text: str | None = None):
+        """Nạp các dòng kết quả vào bảng và tùy chọn cập nhật trạng thái."""
         self.display_rows = rows
         self._fill_results_tree(rows)
         if status_text is not None:
             self.status_var.set(status_text)
 
     def _filter_exam_or_class(self):
+        """Áp dụng bộ lọc kỳ thi/lớp và vẽ lại bảng kết quả."""
         if self.results is None:
             return
 
@@ -696,15 +737,18 @@ class App(ctk.CTk):
         self.status_var.set(f"Đang hiển thị {len(rows)} sinh viên.")
 
     def _filter_score_range(self):
+        """Validate khoảng điểm, kết hợp các bộ lọc và vẽ lại kết quả."""
         if self.results is None:
             messagebox.showwarning("Chưa có dữ liệu", "Vui lòng chấm điểm trước.")
             return
 
         try:
-            low = float(self.var_score_low.get())
-            high = float(self.var_score_high.get())
-        except ValueError:
-            messagebox.showerror("Giá trị không hợp lệ", "Điểm lọc phải là số.")
+            low, high = parse_score_range(
+                self.var_score_low.get(),
+                self.var_score_high.get(),
+            )
+        except ValueError as exc:
+            messagebox.showerror("Giá trị không hợp lệ", str(exc))
             return
 
         filtered = get_students_in_score_range(self.score_index, low, high)
@@ -725,6 +769,7 @@ class App(ctk.CTk):
         )
 
     def _show_all_results(self):
+        """Đặt lại bộ lọc kỳ thi/lớp và hiển thị toàn bộ kết quả."""
         if self.results is None:
             messagebox.showwarning("Chưa có dữ liệu", "Vui lòng chấm điểm trước.")
             return
@@ -735,6 +780,7 @@ class App(ctk.CTk):
         self._display_result_rows(rows, f"Đang hiển thị tất cả {len(rows)} thí sinh.")
 
     def _show_student_answers(self, _event=None):
+        """Hiển thị đáp án chi tiết của dòng kết quả đang chọn."""
         if self.results is None:
             return
 
@@ -769,12 +815,14 @@ class App(ctk.CTk):
             ))
 
     def _clear_student_answer_detail(self):
+        """Xóa toàn bộ dòng khỏi bảng chi tiết bài làm."""
         for row in self.tree_student_answers.get_children():
             self.tree_student_answers.delete(row)
 
     # Cập nhật từng tab
 
     def _refresh_results_tab(self):
+        """Áp dụng bộ lọc/sắp xếp hiện tại và làm mới tab kết quả."""
         if self.results is None:
             return
         rows = self._apply_result_filters(self.result_rows)
@@ -782,6 +830,7 @@ class App(ctk.CTk):
         self._display_result_rows(rows)
 
     def _fill_results_tree(self, rows: list):
+        """Thay nội dung bảng kết quả bằng ``rows`` theo đúng thứ tự."""
         tree = self.tree_results
         for row in tree.get_children():
             tree.delete(row)
@@ -802,6 +851,7 @@ class App(ctk.CTk):
             ))
 
     def _refresh_class_tab(self):
+        """Làm mới bảng tổng hợp lớp từ dữ liệu đã nạp hoặc đã chấm."""
         for row in self.tree_class.get_children():
             self.tree_class.delete(row)
 
@@ -825,6 +875,7 @@ class App(ctk.CTk):
             self.tree_class_students.delete(row)
 
     def _show_class_detail(self, _event=None):
+        """Hiển thị sinh viên thuộc lớp học phần đang chọn."""
         selection = self.tree_class.selection()
         if not selection:
             return
@@ -865,6 +916,7 @@ class App(ctk.CTk):
         )
 
     def _refresh_question_tab(self):
+        """Làm mới thống kê câu hỏi và danh sách câu khó của kỳ thi chọn."""
         tree = self.tree_question
         for row in tree.get_children():
             tree.delete(row)

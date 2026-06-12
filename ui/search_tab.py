@@ -1,3 +1,5 @@
+"""Xây dựng tab tra cứu sinh viên theo MSSV hoặc họ tên."""
+
 import tkinter as tk
 
 import customtkinter as ctk
@@ -6,6 +8,12 @@ from ui.widgets import section_frame
 
 
 def build_search_tab(app):
+    """Gắn ô tìm kiếm, danh sách gợi ý và vùng kết quả vào ``app``.
+
+    Hàm không trả về giá trị. Các sự kiện bàn phím và focus được chuyển đến
+    callback của cửa sổ chính.
+    """
+    # Khu nhập liệu hỗ trợ hai tiêu chí tìm kiếm độc lập.
     main_frame = ctk.CTkFrame(app.tab_search, fg_color="transparent")
     main_frame.pack(expand=True, fill="both", padx=5, pady=5)
 
@@ -39,6 +47,7 @@ def build_search_tab(app):
         command=app._do_search,
     ).grid(row=0, column=4, padx=8, pady=5)
 
+    # Một Listbox dùng chung cho gợi ý MSSV và họ tên, ẩn khi không cần thiết.
     app.search_suggestion_box = tk.Listbox(
         search_outer,
         height=5,

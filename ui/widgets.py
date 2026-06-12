@@ -1,3 +1,5 @@
+"""Các widget dùng chung để giữ bố cục nhất quán giữa các tab."""
+
 import tkinter as tk
 from tkinter import ttk
 
@@ -5,6 +7,15 @@ import customtkinter as ctk
 
 
 def section_frame(parent, title: str):
+    """Tạo khung có tiêu đề.
+
+    Args:
+        parent: Widget cha nhận khung mới.
+        title: Nội dung tiêu đề hiển thị.
+
+    Returns:
+        ``CTkFrame`` đã cấu hình cột nội dung co giãn.
+    """
     frame = ctk.CTkFrame(parent)
     frame.grid_columnconfigure(0, weight=1)
     ctk.CTkLabel(
@@ -16,6 +27,17 @@ def section_frame(parent, title: str):
 
 
 def make_treeview(parent, columns, row: int = 0, pady=8) -> ttk.Treeview:
+    """Tạo bảng có thanh cuộn ngang/dọc trong ``parent``.
+
+    Args:
+        parent: Widget cha dùng grid layout.
+        columns: Danh sách tiêu đề cột.
+        row: Hàng grid đặt khung bảng.
+        pady: Khoảng cách dọc của khung bảng.
+
+    Returns:
+        ``ttk.Treeview`` để caller gắn sự kiện và nạp dữ liệu.
+    """
     parent.grid_columnconfigure(0, weight=1)
     parent.grid_rowconfigure(row, weight=1)
 

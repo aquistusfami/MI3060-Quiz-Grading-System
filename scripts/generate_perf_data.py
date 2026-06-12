@@ -1,8 +1,16 @@
+"""Sinh bộ CSV lớn, xác định được bằng seed, để đo hiệu năng hệ thống.
+
+Script ghi đè ``exams.csv``, ``answer_key.csv`` và ``students.csv`` trong
+``data/performance``. Các hằng số bên dưới kiểm soát kích thước và phân phối
+dữ liệu sinh ra.
+"""
+
 import csv
 import os
 import random
 
 
+# Cấu hình toàn cục của bộ dữ liệu hiệu năng.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUTPUT_DIR = os.path.join(BASE_DIR, "data", "performance")
 
@@ -33,6 +41,7 @@ COURSES = [
 
 
 def main():
+    """Sinh và ghi ba file CSV hiệu năng, sau đó in số lượng bản ghi."""
     random.seed(RANDOM_SEED)
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -74,6 +83,7 @@ def main():
 
 
 def build_exams():
+    """Trả về metadata cho ``EXAM_COUNT`` kỳ thi đã cấu hình."""
     exams = []
     for idx, (exam_id, course_code, course_name, exam_name) in enumerate(COURSES[:EXAM_COUNT], start=1):
         exams.append({
@@ -90,6 +100,7 @@ def build_exams():
 
 
 def build_answer_keys(exams):
+    """Tạo đáp án xác định cho từng kỳ thi trong ``exams``."""
     keys = {}
     for exam_index, exam in enumerate(exams):
         exam_key = {}
@@ -100,6 +111,15 @@ def build_answer_keys(exams):
 
 
 def build_students(exams, answer_keys):
+    """Tạo ``STUDENT_COUNT`` bài làm dựa trên năng lực mô phỏng.
+
+    Args:
+        exams: Metadata kỳ thi do ``build_exams`` tạo.
+        answer_keys: Ánh xạ đáp án theo kỳ thi và câu hỏi.
+
+    Returns:
+        Danh sách dictionary sẵn sàng ghi vào ``students.csv``.
+    """
     rows = []
     classes_by_exam = build_classes(exams)
 
@@ -133,6 +153,7 @@ def build_students(exams, answer_keys):
 
 
 def build_classes(exams):
+    """Tạo tám lớp học phần mô phỏng cho mỗi kỳ thi."""
     classes = {}
     for exam_index, exam in enumerate(exams):
         exam_classes = []
@@ -149,6 +170,7 @@ def build_classes(exams):
 
 
 def choose_student_answer(correct_answer, ability, qid):
+    """Chọn đáp án theo năng lực sinh viên và độ khó mô phỏng của câu."""
     question_difficulty = 0.08 * ((qid % 10) - 4.5) / 4.5
     probability_correct = min(0.98, max(0.18, ability - question_difficulty))
     if random.random() <= probability_correct:
@@ -159,6 +181,7 @@ def choose_student_answer(correct_answer, ability, qid):
 
 
 def make_student_name(index):
+    """Sinh họ tên xác định từ chỉ số sinh viên."""
     last_name = LAST_NAMES[index % len(LAST_NAMES)]
     middle_name = MIDDLE_NAMES[(index // len(LAST_NAMES)) % len(MIDDLE_NAMES)]
     first_name = FIRST_NAMES[(index // (len(LAST_NAMES) * len(MIDDLE_NAMES))) % len(FIRST_NAMES)]
@@ -166,10 +189,12 @@ def make_student_name(index):
 
 
 def clipped_gauss(mean, std_dev, low, high):
+    """Lấy mẫu Gaussian và giới hạn kết quả trong đoạn ``[low, high]``."""
     return min(high, max(low, random.gauss(mean, std_dev)))
 
 
 def write_csv(path, fieldnames, rows):
+    """Ghi ``rows`` vào ``path`` theo thứ tự cột ``fieldnames``."""
     with open(path, "w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
