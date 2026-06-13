@@ -27,6 +27,7 @@ from app_logic import (
     load_students,
     search_students_indexed,
 )
+from custom_structures import List
 
 
 PERF_DIR = os.path.join(BASE_DIR, "data", "performance")
@@ -41,7 +42,7 @@ def main():
         print("Thiếu dữ liệu hiệu năng. Chạy: python scripts/generate_perf_data.py")
         return
 
-    timings = []
+    timings = List()
     answer_key = timed(timings, "Tải đáp án", lambda: load_answer_key(ANSWER_KEY_PATH))
     students = timed(timings, "Tải bài làm", lambda: load_students(STUDENTS_PATH, answer_key.max_question_count()))
     timed(timings, "Tải metadata kỳ thi", lambda: load_exam_store(EXAMS_PATH))

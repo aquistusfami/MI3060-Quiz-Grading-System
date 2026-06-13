@@ -8,10 +8,15 @@ dữ liệu sinh ra.
 import csv
 import os
 import random
-
+import sys
 
 # Cấu hình toàn cục của bộ dữ liệu hiệu năng.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, BASE_DIR)
+
+from custom_structures import HashTable, List
+
+
 OUTPUT_DIR = os.path.join(BASE_DIR, "data", "performance")
 
 RANDOM_SEED = 20260520
@@ -31,13 +36,13 @@ LAST_NAMES = (
     "Do", "Ho", "Ngo", "Duong", "Ly",
 )
 
-COURSES = [
+COURSES = (
     ("PERF001", "MI1111", "Giai tich 1", "Kiem tra trac nghiem Giai tich 1"),
     ("PERF002", "MI1141", "Dai so tuyen tinh", "Kiem tra trac nghiem Dai so tuyen tinh"),
     ("PERF003", "IT1110", "Tin hoc dai cuong", "Kiem tra trac nghiem Tin hoc dai cuong"),
     ("PERF004", "PH1120", "Vat ly dai cuong", "Kiem tra trac nghiem Vat ly dai cuong"),
     ("PERF005", "EM1010", "Kinh te hoc dai cuong", "Kiem tra trac nghiem Kinh te hoc dai cuong"),
-]
+)
 
 
 def main():
@@ -51,28 +56,36 @@ def main():
 
     write_csv(
         os.path.join(OUTPUT_DIR, "exams.csv"),
-        ["exam_id", "ma_hp", "ten_hp", "hoc_ky", "ten_ky_thi", "ngay_thi", "thoi_luong_phut", "ghi_chu"],
+        ("exam_id", "ma_hp", "ten_hp", "hoc_ky", "ten_ky_thi", "ngay_thi", "thoi_luong_phut", "ghi_chu"),
         exam_rows,
     )
+    answer_rows = List()
+    for exam in exam_rows:
+        exam_key = answer_keys[exam["exam_id"]]
+        for question_number in range(1, QUESTION_COUNT + 1):
+            qid = str(question_number)
+            answer_rows.append(make_record(
+                ("exam_id", exam["exam_id"]),
+                ("question_id", qid),
+                ("correct_answer", exam_key[qid]),
+            ))
+
     write_csv(
         os.path.join(OUTPUT_DIR, "answer_key.csv"),
-        ["exam_id", "question_id", "correct_answer"],
-        [
-            {
-                "exam_id": exam["exam_id"],
-                "question_id": qid,
-                "correct_answer": answer,
-            }
-            for exam in exam_rows
-            for qid, answer in answer_keys[exam["exam_id"]].items()
-        ],
+        ("exam_id", "question_id", "correct_answer"),
+        answer_rows,
     )
+    student_fieldnames = List()
+    student_fieldnames.extend((
+        "exam_id", "ma_hp", "hoc_ky", "id_lop_hp", "mssv", "ho_ten",
+        "ma_lop", "ten_lop",
+    ))
+    for i in range(1, QUESTION_COUNT + 1):
+        student_fieldnames.append(f"q{i}")
+
     write_csv(
         os.path.join(OUTPUT_DIR, "students.csv"),
-        [
-            "exam_id", "ma_hp", "hoc_ky", "id_lop_hp", "mssv", "ho_ten",
-            "ma_lop", "ten_lop",
-        ] + [f"q{i}" for i in range(1, QUESTION_COUNT + 1)],
+        student_fieldnames,
         student_rows,
     )
 
@@ -84,29 +97,29 @@ def main():
 
 def build_exams():
     """Trả về metadata cho ``EXAM_COUNT`` kỳ thi đã cấu hình."""
-    exams = []
+    exams = List()
     for idx, (exam_id, course_code, course_name, exam_name) in enumerate(COURSES[:EXAM_COUNT], start=1):
-        exams.append({
-            "exam_id": exam_id,
-            "ma_hp": course_code,
-            "ten_hp": course_name,
-            "hoc_ky": "20252",
-            "ten_ky_thi": exam_name,
-            "ngay_thi": f"2026-05-{10 + idx:02d}",
-            "thoi_luong_phut": "60",
-            "ghi_chu": f"Bo du lieu hieu nang, {QUESTION_COUNT} cau, nhieu lop hoc phan",
-        })
+        exams.append(make_record(
+            ("exam_id", exam_id),
+            ("ma_hp", course_code),
+            ("ten_hp", course_name),
+            ("hoc_ky", "20252"),
+            ("ten_ky_thi", exam_name),
+            ("ngay_thi", f"2026-05-{10 + idx:02d}"),
+            ("thoi_luong_phut", "60"),
+            ("ghi_chu", f"Bo du lieu hieu nang, {QUESTION_COUNT} cau, nhieu lop hoc phan"),
+        ))
     return exams
 
 
 def build_answer_keys(exams):
     """Tạo đáp án xác định cho từng kỳ thi trong ``exams``."""
-    keys = {}
+    keys = HashTable()
     for exam_index, exam in enumerate(exams):
-        exam_key = {}
+        exam_key = HashTable()
         for qid in range(1, QUESTION_COUNT + 1):
-            exam_key[str(qid)] = OPTIONS[(qid + exam_index * 2) % len(OPTIONS)]
-        keys[exam["exam_id"]] = exam_key
+            exam_key.put(str(qid), OPTIONS[(qid + exam_index * 2) % len(OPTIONS)])
+        keys.put(exam["exam_id"], exam_key)
     return keys
 
 
@@ -118,9 +131,9 @@ def build_students(exams, answer_keys):
         answer_keys: Ánh xạ đáp án theo kỳ thi và câu hỏi.
 
     Returns:
-        Danh sách dictionary sẵn sàng ghi vào ``students.csv``.
+        ``List`` chứa các ``HashTable`` sẵn sàng ghi vào ``students.csv``.
     """
-    rows = []
+    rows = List()
     classes_by_exam = build_classes(exams)
 
     for index in range(STUDENT_COUNT):
@@ -132,20 +145,20 @@ def build_students(exams, answer_keys):
         elif index % 23 == 0:
             ability = clipped_gauss(0.88, 0.06, 0.70, 0.99)
 
-        row = {
-            "exam_id": exam["exam_id"],
-            "ma_hp": exam["ma_hp"],
-            "hoc_ky": exam["hoc_ky"],
-            "id_lop_hp": class_info["id_lop_hp"],
-            "mssv": f"2026{index + 1:05d}",
-            "ho_ten": make_student_name(index),
-            "ma_lop": class_info["ma_lop"],
-            "ten_lop": class_info["ten_lop"],
-        }
+        row = make_record(
+            ("exam_id", exam["exam_id"]),
+            ("ma_hp", exam["ma_hp"]),
+            ("hoc_ky", exam["hoc_ky"]),
+            ("id_lop_hp", class_info["id_lop_hp"]),
+            ("mssv", f"2026{index + 1:05d}"),
+            ("ho_ten", make_student_name(index)),
+            ("ma_lop", class_info["ma_lop"]),
+            ("ten_lop", class_info["ten_lop"]),
+        )
 
         for qid in range(1, QUESTION_COUNT + 1):
             correct_answer = answer_keys[exam["exam_id"]][str(qid)]
-            row[f"q{qid}"] = choose_student_answer(correct_answer, ability, qid)
+            row.put(f"q{qid}", choose_student_answer(correct_answer, ability, qid))
 
         rows.append(row)
 
@@ -154,18 +167,18 @@ def build_students(exams, answer_keys):
 
 def build_classes(exams):
     """Tạo tám lớp học phần mô phỏng cho mỗi kỳ thi."""
-    classes = {}
+    classes = HashTable()
     for exam_index, exam in enumerate(exams):
-        exam_classes = []
+        exam_classes = List()
         for class_index in range(8):
             class_id = str(170000 + exam_index * 100 + class_index)
             admin_class = f"K{68 + class_index % 3}{chr(65 + class_index % 4)}"
-            exam_classes.append({
-                "id_lop_hp": class_id,
-                "ma_lop": admin_class,
-                "ten_lop": f"{exam['ten_hp']} - Nhom {class_index + 1}",
-            })
-        classes[exam["exam_id"]] = exam_classes
+            exam_classes.append(make_record(
+                ("id_lop_hp", class_id),
+                ("ma_lop", admin_class),
+                ("ten_lop", f"{exam['ten_hp']} - Nhom {class_index + 1}"),
+            ))
+        classes.put(exam["exam_id"], exam_classes)
     return classes
 
 
@@ -176,7 +189,10 @@ def choose_student_answer(correct_answer, ability, qid):
     if random.random() <= probability_correct:
         return correct_answer
 
-    wrong_options = [option for option in OPTIONS if option != correct_answer]
+    wrong_options = List()
+    for option in OPTIONS:
+        if option != correct_answer:
+            wrong_options.append(option)
     return wrong_options[(qid + random.randint(0, 2)) % len(wrong_options)]
 
 
@@ -193,12 +209,24 @@ def clipped_gauss(mean, std_dev, low, high):
     return min(high, max(low, random.gauss(mean, std_dev)))
 
 
+def make_record(*pairs):
+    """Tạo một bản ghi bằng ``HashTable`` tự cài đặt."""
+    record = HashTable()
+    for key, value in pairs:
+        record.put(key, value)
+    return record
+
+
 def write_csv(path, fieldnames, rows):
     """Ghi ``rows`` vào ``path`` theo thứ tự cột ``fieldnames``."""
     with open(path, "w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
+        writer = csv.writer(file)
+        writer.writerow(fieldnames)
+        for row in rows:
+            values = List()
+            for fieldname in fieldnames:
+                values.append(row.get(fieldname, ""))
+            writer.writerow(values)
 
 
 if __name__ == "__main__":

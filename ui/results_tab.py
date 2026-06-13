@@ -76,7 +76,7 @@ def build_results_tab(app):
     app.result_sort = ctk.CTkComboBox(
         controls,
         variable=app.var_result_sort,
-        values=list(SORT_OPTIONS),
+        values=SORT_OPTIONS,
         width=190,
         command=lambda _: app._refresh_results_tab(),
     )

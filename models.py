@@ -4,6 +4,8 @@ Các lớp trong module chỉ lưu trạng thái và cung cấp thuộc tính d�
 chúng không đọc file, ghi file hoặc phụ thuộc vào giao diện.
 """
 
+from custom_structures import HashTable, List
+
 class Question:
     """Lưu mã câu hỏi và đáp án đúng của một kỳ thi."""
 
@@ -57,7 +59,7 @@ class Student:
         self,
         student_id: str,
         student_name: str,
-        answers: dict,
+        answers: HashTable,
         class_name: str = "",
         class_id: str = "",
         admin_class_id: str = "",
@@ -66,8 +68,7 @@ class Student:
         """Khởi tạo thí sinh.
 
         Args:
-            answers: Ánh xạ ``question_id -> answer``, ví dụ
-                ``{"1": "A", "2": "C"}``.
+            answers: Bảng băm tự cài đặt ánh xạ ``question_id -> answer``.
             Các tham số còn lại là thông tin định danh và phân lớp.
         """
         self.student_id = str(student_id).strip()
@@ -76,6 +77,8 @@ class Student:
         self.admin_class_id = admin_class_id.strip() or "Chưa phân lớp"
         self.class_name = class_name.strip() or self.class_id
         self.exam_id = str(exam_id).strip() or "EXAM001"
+        if not isinstance(answers, HashTable):
+            raise TypeError("answers phải là HashTable tự cài đặt")
         self.answers = answers
 
     def get_answer(self, question_id: str) -> str:
@@ -95,13 +98,15 @@ class ExamResult:
         score: float,
         correct_count: int,
         total_questions: int,
-        wrong_questions: list,
+        wrong_questions: List,
     ):
         """Khởi tạo kết quả và làm tròn điểm về hai chữ số thập phân."""
         self.student = student
         self.score = round(score, 2)
         self.correct_count = correct_count
         self.total_questions = total_questions
+        if not isinstance(wrong_questions, List):
+            raise TypeError("wrong_questions phải là List tự cài đặt")
         self.wrong_questions = wrong_questions
 
     @property

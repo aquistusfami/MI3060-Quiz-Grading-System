@@ -43,7 +43,7 @@ class StudentSearchIndex:
         self.by_student_id = HashTable()
         self.student_id_trie = PrefixTrie()
         self.name_trie = PrefixTrie()
-        self.all_rows = []
+        self.all_rows = List()
 
 
 class AnswerKeyBook:
@@ -70,14 +70,14 @@ class AnswerKeyBook:
         """Trả về bảng đáp án của kỳ thi, hoặc ``None`` nếu chưa có."""
         return self.exam_keys.get(_normalize_exam_id(exam_id))
 
-    def exam_ids(self) -> list:
+    def exam_ids(self) -> List:
         """Trả về danh sách mã kỳ thi tăng dần."""
         return merge_sort(self.exam_keys.keys(), key=lambda exam_id: exam_id)
 
-    def question_ids(self, exam_id: str) -> list:
+    def question_ids(self, exam_id: str) -> List:
         """Trả về mã câu hỏi của kỳ thi, hoặc danh sách rỗng nếu không có."""
         exam_key = self.get_exam_key(exam_id)
-        return exam_key.keys() if exam_key is not None else []
+        return exam_key.keys() if exam_key is not None else List()
 
     def remove_question(self, exam_id: str, question_id: str) -> bool:
         """Xóa một câu hỏi và trả về việc câu hỏi có tồn tại hay không."""
@@ -151,7 +151,39 @@ def _normalize_exam_id(exam_id: str) -> str:
     return str(exam_id).strip() or DEFAULT_EXAM_ID
 
 
-def _get_exam_id(row: dict) -> str:
+def _row_from_csv(headers, values) -> HashTable:
+    """Chuyển một dòng ``csv.reader`` thành bảng băm tự cài đặt."""
+    row = HashTable()
+    for index, header in enumerate(headers):
+        value = values[index] if index < len(values) else ""
+        row.put(header, value)
+    return row
+
+
+def _header_table(headers) -> HashTable:
+    """Tạo tập tên cột bằng ``HashTable`` để kiểm tra tồn tại trung bình O(1)."""
+    table = HashTable()
+    for header in headers:
+        table.put(header, True)
+    return table
+
+
+def _record(*pairs) -> HashTable:
+    """Tạo bản ghi nghiệp vụ từ các cặp ``(key, value)``."""
+    record = HashTable()
+    for key, value in pairs:
+        record.put(key, value)
+    return record
+
+
+def _list_of(*items) -> List:
+    """Tạo ``List`` tự cài đặt từ các phần tử truyền vào."""
+    result = List()
+    result.extend(items)
+    return result
+
+
+def _get_exam_id(row: HashTable) -> str:
     """Suy ra mã kỳ thi từ các tên cột CSV được hỗ trợ."""
     for col in ("exam_id", "exam", "ma_de", "MaDe", "de_thi"):
         if col in row and row[col].strip():
@@ -174,8 +206,10 @@ def load_exam_store(filepath: str | None = None) -> ExamStore:
         return store
 
     with open(filepath, newline="", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
+        reader = csv.reader(f)
+        headers = next(reader, ())
+        for values in reader:
+            row = _row_from_csv(headers, values)
             exam = ExamInfo(
                 exam_id=_get_exam_id(row),
                 course_code=_get_first_value(row, ("ma_hp", "course_code")),
@@ -201,8 +235,10 @@ def load_answer_key(filepath: str) -> AnswerKeyBook:
     answer_key = AnswerKeyBook()
 
     with open(filepath, newline="", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
+        reader = csv.reader(f)
+        headers = next(reader, ())
+        for values in reader:
+            row = _row_from_csv(headers, values)
             exam_id = _get_exam_id(row)
             q = Question(
                 question_id=row["question_id"].strip(),
@@ -214,21 +250,25 @@ def load_answer_key(filepath: str) -> AnswerKeyBook:
     return answer_key
 
 
-def validate_answer_key_csv(filepath: str) -> list:
+def validate_answer_key_csv(filepath: str) -> List:
     """Trả về danh sách lỗi cấu trúc/dữ liệu của file đáp án."""
     with open(filepath, newline="", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        fieldnames = set(reader.fieldnames or [])
-        missing = [
-            column for column in ANSWER_KEY_REQUIRED_COLUMNS
-            if column not in fieldnames
-        ]
+        reader = csv.reader(f)
+        headers = next(reader, ())
+        fieldnames = _header_table(headers)
+        missing = List()
+        for column in ANSWER_KEY_REQUIRED_COLUMNS:
+            if column not in fieldnames:
+                missing.append(column)
         if missing:
-            return [f"File đáp án thiếu cột bắt buộc: {', '.join(missing)}."]
+            errors = List()
+            errors.append(f"File đáp án thiếu cột bắt buộc: {', '.join(missing)}.")
+            return errors
 
-        errors = []
-        seen_questions = set()
-        for line_number, row in enumerate(reader, start=2):
+        errors = List()
+        seen_questions = HashTable()
+        for line_number, values in enumerate(reader, start=2):
+            row = _row_from_csv(headers, values)
             exam_id = _get_exam_id(row)
             question_id = row["question_id"].strip()
             correct_answer = row["correct_answer"]
@@ -244,13 +284,13 @@ def validate_answer_key_csv(filepath: str) -> list:
             if not correct_answer.strip():
                 errors.append(f"Dòng {line_number}: correct_answer không được để trống.")
 
-            question_key = (exam_id, question_id)
-            if question_key in seen_questions:
+            question_key = f"{exam_id}|{question_id}"
+            if seen_questions.contains(question_key):
                 errors.append(
                     f"Dòng {line_number}: trùng câu {question_id} của kỳ thi {exam_id}."
                 )
             else:
-                seen_questions.add(question_key)
+                seen_questions.put(question_key, True)
 
         return errors
 
@@ -263,21 +303,25 @@ def load_students(filepath: str, num_questions: int | None = None) -> List:
     students = List()
 
     with open(filepath, newline="", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        question_columns = [
-            col for col in (reader.fieldnames or [])
-            if col.lower().startswith("q") and col[1:].isdigit()
-        ]
-        for row in reader:
+        reader = csv.reader(f)
+        headers = next(reader, ())
+        question_columns = List()
+        for col in headers:
+            if col.lower().startswith("q") and col[1:].isdigit():
+                question_columns.append(col)
+        for values in reader:
+            row = _row_from_csv(headers, values)
             # Tên cột q1, q2, ... trở thành mã câu 1, 2, ...
-            answers = {}
+            answers = HashTable()
             columns = question_columns
             if num_questions is not None:
-                columns = [f"q{i}" for i in range(1, num_questions + 1)]
+                columns = List()
+                for i in range(1, num_questions + 1):
+                    columns.append(f"q{i}")
 
             for col in columns:
                 if col in row:
-                    answers[col[1:]] = row[col]
+                    answers.put(col[1:], row[col])
 
             student = Student(
                 student_id=_get_student_id(row),
@@ -293,12 +337,13 @@ def load_students(filepath: str, num_questions: int | None = None) -> List:
     return students
 
 
-def validate_students_csv(filepath: str) -> list:
+def validate_students_csv(filepath: str) -> List:
     """Trả về danh sách lỗi của file sinh viên, gồm cả file rỗng."""
     with open(filepath, newline="", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        fieldnames = set(reader.fieldnames or [])
-        errors = []
+        reader = csv.reader(f)
+        headers = next(reader, ())
+        fieldnames = _header_table(headers)
+        errors = List()
         has_student_id = _has_any_column(fieldnames, STUDENT_ID_COLUMNS)
         has_student_name = _has_any_column(fieldnames, STUDENT_NAME_COLUMNS)
 
@@ -319,7 +364,8 @@ def validate_students_csv(filepath: str) -> list:
             return errors
 
         row_count = 0
-        for line_number, row in enumerate(reader, start=2):
+        for line_number, values in enumerate(reader, start=2):
+            row = _row_from_csv(headers, values)
             row_count += 1
             if not _get_student_id(row):
                 errors.append(f"Dòng {line_number}: MSSV không được để trống.")
@@ -332,25 +378,28 @@ def validate_students_csv(filepath: str) -> list:
         return errors
 
 
-def validate_grading_inputs(answer_key: AnswerKeyBook, students: List) -> list:
+def validate_grading_inputs(answer_key: AnswerKeyBook, students: List) -> List:
     """Trả về lỗi liên kết đáp án-sinh viên và MSSV trùng trước khi chấm."""
-    errors = []
+    errors = List()
     if len(answer_key) == 0:
         errors.append("File đáp án không có câu hỏi nào.")
 
-    seen_students = set()
-    missing_exam_ids = set()
+    seen_students = HashTable()
+    missing_exam_ids = HashTable()
     for student in students:
-        student_key = (student.exam_id, student.student_id)
-        if student_key in seen_students:
+        student_key = _result_key(student.exam_id, student.student_id)
+        if seen_students.contains(student_key):
             errors.append(f"Trùng MSSV {student.student_id} trong kỳ thi {student.exam_id}.")
         else:
-            seen_students.add(student_key)
+            seen_students.put(student_key, True)
 
         if answer_key.get_exam_key(student.exam_id) is None:
-            missing_exam_ids.add((student.exam_id, student.student_id))
+            missing_exam_ids.put(student_key, (student.exam_id, student.student_id))
 
-    for exam_id, student_id in sorted(missing_exam_ids):
+    missing_rows = List()
+    for exam_id, student_id in missing_exam_ids.values():
+        missing_rows.append((exam_id, student_id))
+    for exam_id, student_id in merge_sort(missing_rows, key=lambda item: item):
         errors.append(
             f"Sinh viên {student_id} thuộc kỳ thi {exam_id} nhưng không có đáp án tương ứng."
         )
@@ -384,32 +433,32 @@ def infer_exam_store(
     return store
 
 
-def _get_class_name(row: dict) -> str:
+def _get_class_name(row: HashTable) -> str:
     """Đọc tên lớp từ các tên cột phổ biến."""
     return _get_first_value(row, ("ten_lop", "class_name", "class", "lop", "Lop", "Class"))
 
 
-def _get_class_id(row: dict) -> str:
+def _get_class_id(row: HashTable) -> str:
     """Đọc mã lớp học phần HUST, ví dụ 163613."""
     return _get_first_value(row, ("id_lop_hp", "class_id", "ma_lop_hp"))
 
 
-def _get_admin_class_id(row: dict) -> str:
+def _get_admin_class_id(row: HashTable) -> str:
     """Đọc mã lớp hành chính của sinh viên, ví dụ 23D1."""
     return _get_first_value(row, ("ma_lop", "admin_class_id"))
 
 
-def _get_student_id(row: dict) -> str:
+def _get_student_id(row: HashTable) -> str:
     """Lấy MSSV từ tên cột đầu tiên được hỗ trợ và có dữ liệu."""
     return _get_first_value(row, ("mssv", "student_id", "student_code"))
 
 
-def _get_student_name(row: dict) -> str:
+def _get_student_name(row: HashTable) -> str:
     """Lấy họ tên từ tên cột đầu tiên được hỗ trợ và có dữ liệu."""
     return _get_first_value(row, ("ho_ten", "student_name", "name", "full_name"))
 
 
-def _get_first_value(row: dict, columns: tuple[str, ...]) -> str:
+def _get_first_value(row: HashTable, columns: tuple[str, ...]) -> str:
     """Trả về giá trị không rỗng đầu tiên trong các cột ưu tiên."""
     for col in columns:
         if col in row and row[col].strip():
@@ -417,7 +466,7 @@ def _get_first_value(row: dict, columns: tuple[str, ...]) -> str:
     return ""
 
 
-def _has_any_column(fieldnames: set, columns: tuple[str, ...]) -> bool:
+def _has_any_column(fieldnames: HashTable, columns: tuple[str, ...]) -> bool:
     """Kiểm tra header có ít nhất một tên cột được hỗ trợ."""
     return any(column in fieldnames for column in columns)
 
@@ -427,14 +476,14 @@ def _has_any_column(fieldnames: set, columns: tuple[str, ...]) -> bool:
 def grade_student(
     student: Student,
     answer_key: AnswerKeyBook,
-    question_ids: list | None = None,
+    question_ids: List | None = None,
 ) -> ExamResult:
     """
     Chấm điểm một thí sinh.
     Dùng bảng băm để tra cứu đáp án theo từng câu.
     """
     correct_count = 0
-    wrong_questions = []
+    wrong_questions = List()
     exam_key = answer_key.get_exam_key(student.exam_id)
     if exam_key is None:
         raise ValueError(f"Không có đáp án cho kỳ thi/đề thi: {student.exam_id}")
@@ -515,12 +564,12 @@ def compute_question_stats(
             key = _question_stat_key(student.exam_id, qid)
             entry = stats.get(key)
             if entry is None:
-                entry = {
-                    "exam_id": student.exam_id,
-                    "question_id": qid,
-                    "correct": 0,
-                    "total": 0,
-                }
+                entry = _record(
+                    ("exam_id", student.exam_id),
+                    ("question_id", qid),
+                    ("correct", 0),
+                    ("total", 0),
+                )
                 stats.put(key, entry)
 
             question: Question = exam_key.get(qid)
@@ -541,9 +590,9 @@ def _question_stat_key(exam_id: str, question_id: str) -> str:
     return f"{_normalize_exam_id(exam_id)}|{question_id}"
 
 
-def build_result_rows_in_student_order(students: List, results: HashTable) -> list:
+def build_result_rows_in_student_order(students: List, results: HashTable) -> List:
     """Tạo danh sách kết quả theo đúng thứ tự thí sinh trong file CSV."""
-    rows = []
+    rows = List()
     for student in students:
         key = _result_key(student.exam_id, student.student_id)
         result = results.get(key)
@@ -555,10 +604,10 @@ def build_result_rows_in_student_order(students: List, results: HashTable) -> li
     return rows
 
 
-def sort_results(rows: list, sort_option: str) -> list:
+def sort_results(rows: List, sort_option: str) -> List:
     """Trả về bản sao danh sách kết quả theo tùy chọn sắp xếp đã chọn."""
     if sort_option == SORT_CSV_ORDER:
-        return rows[:]
+        return rows.copy()
     if sort_option == SORT_SCORE_DESC:
         return merge_sort(
             rows,
@@ -586,13 +635,13 @@ def export_results_csv(results: HashTable, output_path: str) -> None:
 
     with open(output_path, "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.writer(f)
-        writer.writerow([
+        writer.writerow(_list_of(
             "Hạng", "Kỳ thi", "MSSV", "Họ tên", "ID lớp HP", "Mã lớp SV", "Tên lớp SV",
             "Điểm", "Số câu đúng", "Tổng số câu",
             "Tỷ lệ (%)",
-        ])
+        ))
         for rank_pos, r in enumerate(all_results, start=1):
-            writer.writerow([
+            writer.writerow(_list_of(
                 rank_pos,
                 r.exam_id,
                 r.student_id,
@@ -604,7 +653,7 @@ def export_results_csv(results: HashTable, output_path: str) -> None:
                 r.correct_count,
                 r.total_questions,
                 r.accuracy_percent,
-            ])
+            ))
 
 
 def export_question_stats_csv(
@@ -620,13 +669,13 @@ def export_question_stats_csv(
 
     with open(output_path, "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.writer(f)
-        writer.writerow(["Kỳ thi", "Câu hỏi", "Số người đúng", "Số người sai", "Tỷ lệ đúng (%)"])
+        writer.writerow(_list_of("Kỳ thi", "Câu hỏi", "Số người đúng", "Số người sai", "Tỷ lệ đúng (%)"))
         for data in items:
             total = data["total"]
             correct = data["correct"]
             wrong = total - correct
             rate = round(correct / total * 100, 1) if total > 0 else 0.0
-            writer.writerow([data["exam_id"], f"Cau {data['question_id']}", correct, wrong, rate])
+            writer.writerow(_list_of(data["exam_id"], f"Cau {data['question_id']}", correct, wrong, rate))
 
 
 def export_answer_key_csv(answer_key: AnswerKeyBook, output_path: str) -> None:
@@ -635,7 +684,7 @@ def export_answer_key_csv(answer_key: AnswerKeyBook, output_path: str) -> None:
     if directory:
         os.makedirs(directory, exist_ok=True)
 
-    rows = []
+    rows = List()
     for exam_id in answer_key.exam_ids():
         exam_key = answer_key.get_exam_key(exam_id)
         if exam_key is None:
@@ -646,7 +695,7 @@ def export_answer_key_csv(answer_key: AnswerKeyBook, output_path: str) -> None:
 
     with open(output_path, "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.writer(f)
-        writer.writerow(["exam_id", "question_id", "correct_answer"])
+        writer.writerow(_list_of("exam_id", "question_id", "correct_answer"))
         writer.writerows(rows)
 
 
@@ -666,7 +715,7 @@ def build_student_search_index(results: HashTable) -> StudentSearchIndex:
     for result in rows:
         student_rows = index.by_student_id.get(result.student_id)
         if student_rows is None:
-            student_rows = []
+            student_rows = List()
             index.by_student_id.put(result.student_id, student_rows)
         student_rows.append(result)
 
@@ -686,9 +735,9 @@ def search_students_indexed(
     student_search_index: StudentSearchIndex,
     student_id: str,
     exam_id: str | None = None,
-) -> list:
+) -> List:
     """Tra cứu kết quả theo MSSV bằng chỉ mục bảng băm."""
-    rows = student_search_index.by_student_id.get(str(student_id).strip(), [])
+    rows = student_search_index.by_student_id.get(str(student_id).strip(), List())
     rows = _filter_results_by_exam(rows, exam_id)
     return merge_sort(rows, key=lambda r: r.exam_id)
 
@@ -698,14 +747,14 @@ def search_students_by_name_prefix(
     prefix: str,
     exam_id: str | None = None,
     limit: int = 20,
-) -> list:
+) -> List:
     """Tra cứu kết quả theo tiền tố họ tên bằng trie."""
     if limit <= 0:
-        return []
+        return List()
 
     normalized_prefix = _normalize_search_text(prefix)
     if not normalized_prefix:
-        return []
+        return List()
 
     names = student_search_index.name_trie.autocomplete(
         normalized_prefix,
@@ -715,7 +764,7 @@ def search_students_by_name_prefix(
     for name in names:
         name_set.put(_normalize_search_text(name), True)
 
-    rows = []
+    rows = List()
     for result in student_search_index.all_rows:
         if not name_set.contains(_normalize_search_text(result.student_name)):
             continue
@@ -731,18 +780,22 @@ def get_student_name_suggestions(
     student_search_index: StudentSearchIndex | None,
     prefix: str,
     limit: int = 8,
-) -> list:
+) -> List:
     """Lấy gợi ý họ tên sinh viên theo tiền tố."""
     if student_search_index is None:
-        return []
+        return List()
     return student_search_index.name_trie.autocomplete(_normalize_search_text(prefix), limit)
 
 
-def _filter_results_by_exam(rows: list, exam_id: str | None) -> list:
+def _filter_results_by_exam(rows: List, exam_id: str | None) -> List:
     """Trả về bản sao các kết quả thuộc kỳ thi được chọn."""
     if not exam_id or exam_id == "Tất cả":
-        return rows[:]
-    return [result for result in rows if result.exam_id == exam_id]
+        return rows.copy()
+    filtered = List()
+    for result in rows:
+        if result.exam_id == exam_id:
+            filtered.append(result)
+    return filtered
 
 
 def _normalize_search_text(value: str) -> str:
@@ -754,14 +807,14 @@ def get_student_id_suggestions(
     student_id_trie: PrefixTrie | None,
     prefix: str,
     limit: int = 8,
-) -> list:
+) -> List:
     """Lấy danh sách MSSV bắt đầu bằng prefix."""
     if student_id_trie is None:
-        return []
+        return List()
     return student_id_trie.autocomplete(prefix, limit)
 
 
-def get_ranking(results: HashTable) -> list:
+def get_ranking(results: HashTable) -> List:
     """Trả về kết quả đã sắp xếp theo điểm giảm dần."""
     return merge_sort(
         results.values(),
@@ -770,7 +823,7 @@ def get_ranking(results: HashTable) -> list:
     )
 
 
-def build_score_index(results: HashTable) -> list:
+def build_score_index(results: HashTable) -> List:
     """Tạo chỉ mục điểm tăng dần để tìm kiếm nhị phân."""
     return merge_sort(
         results.values(),
@@ -791,7 +844,7 @@ def parse_score_range(low_value: str, high_value: str) -> tuple[float, float]:
     return low, high
 
 
-def _lower_bound_score(score_index: list, target_score: float) -> int:
+def _lower_bound_score(score_index: List, target_score: float) -> int:
     """Trả về vị trí đầu tiên có điểm không nhỏ hơn ``target_score``."""
     lo = 0
     hi = len(score_index)
@@ -805,20 +858,23 @@ def _lower_bound_score(score_index: list, target_score: float) -> int:
 
 
 def get_students_in_score_range(
-    score_index: list,
+    score_index: List,
     low: float,
     high: float,
-) -> list:
+) -> List:
     """Lấy thí sinh có điểm trong khoảng [low, high]."""
     if low > high:
         low, high = high, low
 
     left = _lower_bound_score(score_index, low)
     right = _lower_bound_score(score_index, high + 0.001)
-    return list(reversed(score_index[left:right]))
+    result = List()
+    for item in reversed(score_index[left:right]):
+        result.append(item)
+    return result
 
 
-def get_hardest_questions(question_stats: HashTable, n: int = 5) -> list:
+def get_hardest_questions(question_stats: HashTable, n: int = 5) -> List:
     """Trả về n câu hỏi có tỷ lệ đúng thấp nhất."""
     heap = MinHeap()
     for _, data in question_stats.items():
@@ -831,14 +887,14 @@ def get_hardest_questions(question_stats: HashTable, n: int = 5) -> list:
             (data["exam_id"], qid, correct, total, rate),
         )
 
-    hardest = []
+    hardest = List()
     for _ in range(min(n, len(heap))):
         _, item = heap.pop()
         hardest.append(item)
     return hardest
 
 
-def get_question_stats_items(question_stats: HashTable) -> list:
+def get_question_stats_items(question_stats: HashTable) -> List:
     """Trả về thống kê câu hỏi đã sắp xếp."""
     return merge_sort(
         question_stats.values(),
@@ -846,24 +902,24 @@ def get_question_stats_items(question_stats: HashTable) -> list:
     )
 
 
-def get_student_answer_items(result: ExamResult, answer_key: AnswerKeyBook) -> list:
+def get_student_answer_items(result: ExamResult, answer_key: AnswerKeyBook) -> List:
     """Trả về từng đáp án sinh viên đã chọn và đáp án đúng."""
     exam_key = answer_key.get_exam_key(result.exam_id)
     if exam_key is None:
-        return []
+        return List()
 
-    items = []
+    items = List()
     question_ids = merge_sort(exam_key.keys(), key=_question_sort_value)
     for qid in question_ids:
         question = exam_key.get(qid)
         selected = result.student.get_answer(qid)
         is_correct = selected == question.correct_answer
-        items.append({
-            "question_id": qid,
-            "selected_answer": selected or "-",
-            "correct_answer": question.correct_answer,
-            "is_correct": is_correct,
-        })
+        items.append(_record(
+            ("question_id", qid),
+            ("selected_answer", selected or "-"),
+            ("correct_answer", question.correct_answer),
+            ("is_correct", is_correct),
+        ))
     return items
 
 
@@ -872,7 +928,7 @@ def _question_sort_value(question_id: str) -> int:
     return int(question_id)
 
 
-def get_class_names(results: HashTable) -> list:
+def get_class_names(results: HashTable) -> List:
     """Trả về danh sách id_lop_hp duy nhất."""
     seen = HashTable()
     for result in results.values():
@@ -880,7 +936,7 @@ def get_class_names(results: HashTable) -> list:
     return merge_sort(seen.keys(), key=lambda name: name)
 
 
-def get_exam_ids(results: HashTable) -> list:
+def get_exam_ids(results: HashTable) -> List:
     """Trả về danh sách exam_id duy nhất trong kết quả."""
     seen = HashTable()
     for result in results.values():
@@ -888,35 +944,43 @@ def get_exam_ids(results: HashTable) -> list:
     return merge_sort(seen.keys(), key=lambda exam_id: exam_id)
 
 
-def get_results_by_exam(ranking: list, exam_id: str) -> list:
+def get_results_by_exam(ranking: List, exam_id: str) -> List:
     """Lọc kết quả theo kỳ thi."""
     if not exam_id or exam_id == "Tất cả":
-        return ranking[:]
-    return [result for result in ranking if result.exam_id == exam_id]
+        return ranking.copy()
+    filtered = List()
+    for result in ranking:
+        if result.exam_id == exam_id:
+            filtered.append(result)
+    return filtered
 
 
-def get_results_by_class(ranking: list, class_name: str) -> list:
+def get_results_by_class(ranking: List, class_name: str) -> List:
     """Lọc kết quả theo lớp học phần."""
     if not class_name or class_name == "Tất cả":
-        return ranking[:]
-    return [result for result in ranking if result.class_id == class_name]
+        return ranking.copy()
+    filtered = List()
+    for result in ranking:
+        if result.class_id == class_name:
+            filtered.append(result)
+    return filtered
 
 
-def build_class_summary(results: HashTable) -> list:
+def build_class_summary(results: HashTable) -> List:
     """Thống kê số thí sinh, điểm trung bình và tỷ lệ đạt theo lớp."""
     groups = HashTable()
     for result in results.values():
         key = f"{result.exam_id}|{result.class_id}"
         entry = groups.get(key)
         if entry is None:
-            entry = {
-                "exam_id": result.exam_id,
-                "class_id": result.class_id,
-                "class_name": result.class_name,
-                "count": 0,
-                "total_score": 0.0,
-                "passing": 0,
-            }
+            entry = _record(
+                ("exam_id", result.exam_id),
+                ("class_id", result.class_id),
+                ("class_name", result.class_name),
+                ("count", 0),
+                ("total_score", 0.0),
+                ("passing", 0),
+            )
             groups.put(key, entry)
 
         entry["count"] += 1
@@ -924,36 +988,36 @@ def build_class_summary(results: HashTable) -> list:
         if result.score >= 5.0:
             entry["passing"] += 1
 
-    summary = []
+    summary = List()
     for entry in groups.values():
         count = entry["count"]
-        summary.append({
-            "class_name": entry["class_name"],
-            "class_id": entry["class_id"],
-            "exam_id": entry["exam_id"],
-            "count": count,
-            "average": round(entry["total_score"] / count, 2) if count else 0.0,
-            "passing_rate": round(entry["passing"] / count * 100, 1) if count else 0.0,
-        })
+        summary.append(_record(
+            ("class_name", entry["class_name"]),
+            ("class_id", entry["class_id"]),
+            ("exam_id", entry["exam_id"]),
+            ("count", count),
+            ("average", round(entry["total_score"] / count, 2) if count else 0.0),
+            ("passing_rate", round(entry["passing"] / count * 100, 1) if count else 0.0),
+        ))
 
     return merge_sort(summary, key=lambda item: (item["exam_id"], item["class_id"]))
 
 
-def build_class_roster_summary(students: List) -> list:
+def build_class_roster_summary(students: List) -> List:
     """Tạo danh sách lớp học phần từ file thí sinh, chưa cần chấm điểm."""
     groups = HashTable()
     for student in students:
         key = f"{student.exam_id}|{student.class_id}"
         entry = groups.get(key)
         if entry is None:
-            entry = {
-                "exam_id": student.exam_id,
-                "class_id": student.class_id,
-                "class_name": student.class_name,
-                "count": 0,
-                "average": None,
-                "passing_rate": None,
-            }
+            entry = _record(
+                ("exam_id", student.exam_id),
+                ("class_id", student.class_id),
+                ("class_name", student.class_name),
+                ("count", 0),
+                ("average", None),
+                ("passing_rate", None),
+            )
             groups.put(key, entry)
         entry["count"] += 1
 

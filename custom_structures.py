@@ -86,11 +86,17 @@ class HashTable:
 
     def contains(self, key) -> bool:
         """Kiểm tra key có tồn tại hay không."""
-        return self.get(key) is not None
+        idx = self._hash(key)
+        node = self.buckets[idx]
+        while node:
+            if node.key == key:
+                return True
+            node = node.next
+        return False
 
-    def keys(self) -> list:
+    def keys(self):
         """Trả về tất cả key."""
-        result = []
+        result = List()
         for bucket in self.buckets:
             node = bucket
             while node:
@@ -98,9 +104,9 @@ class HashTable:
                 node = node.next
         return result
 
-    def values(self) -> list:
+    def values(self):
         """Trả về tất cả value."""
-        result = []
+        result = List()
         for bucket in self.buckets:
             node = bucket
             while node:
@@ -108,9 +114,9 @@ class HashTable:
                 node = node.next
         return result
 
-    def items(self) -> list:
+    def items(self):
         """Trả về tất cả cặp (key, value)."""
-        result = []
+        result = List()
         for bucket in self.buckets:
             node = bucket
             while node:
@@ -134,6 +140,22 @@ class HashTable:
     def __len__(self):
         return self.size
 
+    def __getitem__(self, key):
+        value = self.get(key)
+        if value is None and not self.contains(key):
+            raise KeyError(key)
+        return value
+
+    def __setitem__(self, key, value):
+        self.put(key, value)
+
+    def __contains__(self, key):
+        return self.contains(key)
+
+    def __iter__(self):
+        for key in self.keys():
+            yield key
+
     def __repr__(self):
         return f"HashTable(size={self.size}, capacity={self.capacity})"
 
@@ -155,6 +177,11 @@ class List:
             self._resize(self._capacity * 2)
         self._elements[self._size] = item
         self._size += 1
+
+    def extend(self, items) -> None:
+        """Thêm lần lượt mọi phần tử từ một iterable vào cuối danh sách."""
+        for item in items:
+            self.append(item)
 
     def get(self, index):
         """Lấy phần tử tại chỉ mục, hỗ trợ chỉ mục âm."""
@@ -206,6 +233,12 @@ class List:
         """Trả về bản sao built-in ``list`` của các phần tử đang lưu."""
         return [self._elements[i] for i in range(self._size)]
 
+    def copy(self):
+        """Trả về một ``List`` mới có cùng các phần tử."""
+        copied = List(max(self._capacity, self._MIN_CAPACITY))
+        copied.extend(self)
+        return copied
+
     def _resize(self, new_capacity: int) -> None:
         """Cấp phát mảng mới và sao chép các phần tử hiện có."""
         new_capacity = max(new_capacity, self._MIN_CAPACITY)
@@ -231,10 +264,39 @@ class List:
             yield self._elements[i]
 
     def __getitem__(self, index):
+        if isinstance(index, slice):
+            start, stop, step = index.indices(self._size)
+            result = List()
+            for i in range(start, stop, step):
+                result.append(self._elements[i])
+            return result
         return self.get(index)
 
     def __setitem__(self, index, value):
         self.set(index, value)
+
+    def __contains__(self, item):
+        for current in self:
+            if current == item:
+                return True
+        return False
+
+    def __add__(self, other):
+        result = self.copy()
+        result.extend(other)
+        return result
+
+    def __reversed__(self):
+        for i in range(self._size - 1, -1, -1):
+            yield self._elements[i]
+
+    def __eq__(self, other):
+        try:
+            if len(self) != len(other):
+                return False
+            return all(self[i] == other[i] for i in range(self._size))
+        except (TypeError, IndexError):
+            return False
 
     def __repr__(self):
         return f"List({self.to_list()})"
@@ -244,7 +306,7 @@ class List:
             return "List:[]"
         return "List:[" + ", ".join(str(item) for item in self) + "]"
 
-def merge_sort(arr: list, key=lambda x: x, reverse: bool = False) -> list:
+def merge_sort(arr, key=lambda x: x, reverse: bool = False) -> List:
     """Trả về bản sao đã sắp xếp ổn định theo ``key``.
 
     Args:
@@ -253,7 +315,9 @@ def merge_sort(arr: list, key=lambda x: x, reverse: bool = False) -> list:
         reverse: Sắp xếp giảm dần khi bằng ``True``.
     """
     if len(arr) <= 1:
-        return arr[:]
+        result = List()
+        result.extend(arr)
+        return result
 
     mid = len(arr) // 2
     left = merge_sort(arr[:mid], key=key, reverse=reverse)
@@ -261,9 +325,9 @@ def merge_sort(arr: list, key=lambda x: x, reverse: bool = False) -> list:
     return _merge(left, right, key, reverse)
 
 
-def _merge(left: list, right: list, key, reverse: bool) -> list:
+def _merge(left: List, right: List, key, reverse: bool) -> List:
     """Trộn hai danh sách đã sắp xếp và giữ thứ tự của khóa bằng nhau."""
-    result = []
+    result = List()
     i = 0
     j = 0
 
@@ -289,7 +353,7 @@ class MinHeap:
 
     def __init__(self):
         """Khởi tạo đống rỗng."""
-        self._data = []
+        self._data = List()
 
     def push(self, priority, value) -> None:
         """Thêm giá trị và khôi phục tính chất đống theo ``priority``."""
@@ -348,7 +412,7 @@ class TrieNode:
     def __init__(self):
         """Khởi tạo nút chưa có nhánh con hoặc giá trị kết thúc."""
         self.children = HashTable()
-        self.values = []
+        self.values = List()
         self.is_end = False
 
 
@@ -378,23 +442,23 @@ class PrefixTrie:
         if final_value not in current.values:
             current.values.append(final_value)
 
-    def autocomplete(self, prefix: str, limit: int = 8) -> list:
+    def autocomplete(self, prefix: str, limit: int = 8) -> List:
         """Trả về tối đa ``limit`` giá trị có khóa bắt đầu bằng tiền tố."""
         prefix = str(prefix).strip().lower()
         if not prefix or limit <= 0:
-            return []
+            return List()
 
         current = self.root
         for char in prefix:
             current = current.children.get(char)
             if current is None:
-                return []
+                return List()
 
-        results = []
+        results = List()
         self._collect(current, results, limit)
         return results
 
-    def _collect(self, node: TrieNode, results: list, limit: int) -> None:
+    def _collect(self, node: TrieNode, results: List, limit: int) -> None:
         """Duyệt cây theo thứ tự ký tự và thêm kết quả đến giới hạn."""
         if len(results) >= limit:
             return

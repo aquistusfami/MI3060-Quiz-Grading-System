@@ -48,6 +48,7 @@ from app_logic import (
     build_class_roster_summary,
 )
 from models import Question
+from custom_structures import HashTable, List, merge_sort
 from ui.answer_key_tab import build_answer_key_tab
 from ui.class_tab import build_class_tab
 from ui.question_tab import build_question_tab
@@ -63,6 +64,16 @@ OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 
 ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("blue")
+
+
+def _combo_values(items: List, default_value: str) -> list[str]:
+    """Chuyển ``List`` tự cài đặt sang kiểu dữ liệu CTkComboBox yêu cầu."""
+    values = items.to_list()
+    if values:
+        values.insert(0, default_value)
+    else:
+        values.append(default_value)
+    return values
 
 
 class App(ctk.CTk):
@@ -84,13 +95,13 @@ class App(ctk.CTk):
         self.students = None
         self.results = None
         self.question_stats = None
-        self.class_summary = []
-        self.result_rows = []
-        self.display_rows = []
-        self.score_index = []
+        self.class_summary = List()
+        self.result_rows = List()
+        self.display_rows = List()
+        self.score_index = List()
         self.student_search_index = None
-        self.exam_ids = []
-        self.class_names = []
+        self.exam_ids = List()
+        self.class_names = List()
 
         self._build_ui()
         self._load_initial_answer_key()
@@ -211,12 +222,12 @@ class App(ctk.CTk):
                 self.students = load_students(student_path)
         except Exception:
             self.students = None
-            self.class_summary = []
+            self.class_summary = List()
             self._refresh_class_tab()
             return
 
         if self.students is None:
-            self.class_summary = []
+            self.class_summary = List()
         else:
             self.class_summary = build_class_roster_summary(self.students)
         self._refresh_class_tab()
@@ -245,7 +256,7 @@ class App(ctk.CTk):
 
     def _browse_answer(self):
         """Chọn file đáp án và nạp file đó vào tab quản lý."""
-        path = filedialog.askopenfilename(filetypes=[("CSV", "*.csv")])
+        path = filedialog.askopenfilename(filetypes=(("CSV", "*.csv"),))
         if path:
             self.var_answer_path.set(path)
             self.answer_key_dirty = False
@@ -254,17 +265,17 @@ class App(ctk.CTk):
 
     def _browse_students(self):
         """Chọn file sinh viên, xóa kết quả cũ và cập nhật danh sách lớp."""
-        path = filedialog.askopenfilename(filetypes=[("CSV", "*.csv")])
+        path = filedialog.askopenfilename(filetypes=(("CSV", "*.csv"),))
         if path:
             self.var_student_path.set(path)
             self.results = None
             self.question_stats = None
-            self.result_rows = []
-            self.display_rows = []
-            self.score_index = []
+            self.result_rows = List()
+            self.display_rows = List()
+            self.score_index = List()
             self.student_search_index = None
-            self.exam_ids = []
-            self.class_names = []
+            self.exam_ids = List()
+            self.class_names = List()
             self._load_initial_class_roster()
 
     def _run_grading(self):
@@ -317,7 +328,7 @@ class App(ctk.CTk):
 
             self.results = grade_all(self.students, self.answer_key)
             self.result_rows = build_result_rows_in_student_order(self.students, self.results)
-            self.display_rows = []
+            self.display_rows = List()
             self.score_index = build_score_index(self.results)
             self.student_search_index = build_student_search_index(self.results)
             self.exam_ids = get_exam_ids(self.results)
@@ -325,11 +336,13 @@ class App(ctk.CTk):
             self.var_exam_filter.set("Tất cả")
             self.var_class_filter.set("Tất cả")
             self.var_result_sort.set(SORT_CSV_ORDER)
-            self.exam_filter.configure(values=["Tất cả"] + self.exam_ids)
-            self.class_filter.configure(values=["Tất cả"] + self.class_names)
+            self.exam_filter.configure(values=_combo_values(self.exam_ids, "Tất cả"))
+            self.class_filter.configure(values=_combo_values(self.class_names, "Tất cả"))
             first_exam = self.exam_ids[0] if self.exam_ids else "Chưa có dữ liệu"
             self.var_question_exam_filter.set(first_exam)
-            self.question_exam_filter.configure(values=self.exam_ids or ["Chưa có dữ liệu"])
+            self.question_exam_filter.configure(
+                values=self.exam_ids.to_list() if self.exam_ids else _combo_values(List(), "Chưa có dữ liệu")
+            )
 
             self.question_stats = compute_question_stats(self.students, self.answer_key)
             self.class_summary = build_class_summary(self.results)
@@ -479,7 +492,7 @@ class App(ctk.CTk):
         initial_path = self.answer_key_source_path or self.var_answer_path.get() or DEFAULT_ANSWER_KEY
         path = filedialog.asksaveasfilename(
             defaultextension=".csv",
-            filetypes=[("CSV", "*.csv")],
+            filetypes=(("CSV", "*.csv"),),
             initialdir=os.path.dirname(initial_path),
             initialfile=os.path.basename(initial_path),
         )
@@ -523,7 +536,10 @@ class App(ctk.CTk):
             exam_key = self.answer_key.get_exam_key(exam_id)
             if exam_key is None:
                 continue
-            question_ids = sorted(exam_key.keys(), key=self._answer_key_question_sort_value)
+            question_ids = merge_sort(
+                exam_key.keys(),
+                key=self._answer_key_question_sort_value,
+            )
             for question_id in question_ids:
                 question = exam_key.get(question_id)
                 iid = self._answer_key_iid(exam_id, question.question_id)
@@ -552,12 +568,12 @@ class App(ctk.CTk):
         """Xóa mọi kết quả phụ thuộc vào kho đáp án vừa thay đổi."""
         self.results = None
         self.question_stats = None
-        self.result_rows = []
-        self.display_rows = []
-        self.score_index = []
+        self.result_rows = List()
+        self.display_rows = List()
+        self.score_index = List()
         self.student_search_index = None
-        self.exam_ids = []
-        self.class_names = []
+        self.exam_ids = List()
+        self.class_names = List()
 
         if hasattr(self, "tree_results"):
             for row in self.tree_results.get_children():
@@ -566,18 +582,18 @@ class App(ctk.CTk):
             self._clear_student_answer_detail()
         if hasattr(self, "exam_filter"):
             self.var_exam_filter.set("Tất cả")
-            self.exam_filter.configure(values=["Tất cả"])
+            self.exam_filter.configure(values=_combo_values(List(), "Tất cả"))
         if hasattr(self, "class_filter"):
             self.var_class_filter.set("Tất cả")
-            self.class_filter.configure(values=["Tất cả"])
+            self.class_filter.configure(values=_combo_values(List(), "Tất cả"))
         if hasattr(self, "question_exam_filter"):
             self.var_question_exam_filter.set("Chưa có dữ liệu")
-            self.question_exam_filter.configure(values=["Chưa có dữ liệu"])
+            self.question_exam_filter.configure(values=_combo_values(List(), "Chưa có dữ liệu"))
 
         if self.students is not None:
             self.class_summary = build_class_roster_summary(self.students)
         else:
-            self.class_summary = []
+            self.class_summary = List()
         if hasattr(self, "tree_class"):
             self._refresh_class_tab()
         if hasattr(self, "tree_question"):
@@ -678,9 +694,10 @@ class App(ctk.CTk):
         if not matches:
             self.search_result_text.insert(tk.END, f"Không tìm thấy thí sinh theo {query_label}")
         else:
-            lines = [f"Kết quả tìm kiếm theo {query_label}: {len(matches)} kết quả"]
+            lines = List()
+            lines.append(f"Kết quả tìm kiếm theo {query_label}: {len(matches)} kết quả")
             for result in matches:
-                lines.extend([
+                lines.extend((
                     "=" * 45,
                     f"  Kỳ thi      : {result.exam_id}",
                     f"  MSSV        : {result.student_id}",
@@ -692,13 +709,13 @@ class App(ctk.CTk):
                     f"  Số câu đúng : {result.correct_count} / {result.total_questions}",
                     f"  Tỷ lệ đúng  : {result.accuracy_percent}%",
                     f"  Các câu sai : {self._format_wrong_questions(result.wrong_questions)}",
-                ])
+                ))
             lines.append("=" * 45)
             self.search_result_text.insert(tk.END, "\n".join(lines))
 
         self.search_result_text.configure(state=tk.DISABLED)
 
-    def _format_wrong_questions(self, question_ids: list) -> str:
+    def _format_wrong_questions(self, question_ids: List) -> str:
         """Trả về chuỗi mã câu sai đã sắp xếp để hiển thị."""
         if not question_ids:
             return "Không có"
@@ -707,19 +724,20 @@ class App(ctk.CTk):
             """Chuyển mã câu hỏi thành khóa số để sắp xếp."""
             return int(question_id)
 
-        return ", ".join(f"Câu {qid}" for qid in sorted(question_ids, key=sort_key))
+        ordered = merge_sort(question_ids, key=sort_key)
+        return ", ".join(f"Câu {qid}" for qid in ordered)
 
-    def _apply_result_filters(self, rows: list) -> list:
+    def _apply_result_filters(self, rows: List) -> List:
         """Lọc ``rows`` theo kỳ thi và lớp đang chọn, không đổi danh sách gốc."""
         rows = get_results_by_exam(rows, self.var_exam_filter.get())
         rows = get_results_by_class(rows, self.var_class_filter.get())
         return rows
 
-    def _sort_result_rows_for_display(self, rows: list) -> list:
+    def _sort_result_rows_for_display(self, rows: List) -> List:
         """Trả về bản sao ``rows`` theo tùy chọn sắp xếp của giao diện."""
         return sort_results(rows, self.var_result_sort.get())
 
-    def _display_result_rows(self, rows: list, status_text: str | None = None):
+    def _display_result_rows(self, rows: List, status_text: str | None = None):
         """Nạp các dòng kết quả vào bảng và tùy chọn cập nhật trạng thái."""
         self.display_rows = rows
         self._fill_results_tree(rows)
@@ -752,15 +770,13 @@ class App(ctk.CTk):
             return
 
         filtered = get_students_in_score_range(self.score_index, low, high)
-        filtered_keys = {
-            (result.exam_id, result.student_id)
-            for result in filtered
-        }
-        rows = [
-            result
-            for result in self.result_rows
-            if (result.exam_id, result.student_id) in filtered_keys
-        ]
+        filtered_keys = HashTable()
+        for result in filtered:
+            filtered_keys.put(f"{result.exam_id}|{result.student_id}", True)
+        rows = List()
+        for result in self.result_rows:
+            if filtered_keys.contains(f"{result.exam_id}|{result.student_id}"):
+                rows.append(result)
         rows = self._apply_result_filters(rows)
         rows = self._sort_result_rows_for_display(rows)
         self._display_result_rows(rows)
@@ -829,7 +845,7 @@ class App(ctk.CTk):
         rows = self._sort_result_rows_for_display(rows)
         self._display_result_rows(rows)
 
-    def _fill_results_tree(self, rows: list):
+    def _fill_results_tree(self, rows: List):
         """Thay nội dung bảng kết quả bằng ``rows`` theo đúng thứ tự."""
         tree = self.tree_results
         for row in tree.get_children():
@@ -943,11 +959,14 @@ class App(ctk.CTk):
                 data["exam_id"], f"Câu {data['question_id']}", correct, wrong, f"{rate}%"
             ))
 
-        hardest = [
-            item for item in get_hardest_questions(self.question_stats, len(self.question_stats))
-            if not selected_exam or selected_exam == "Chưa có dữ liệu" or item[0] == selected_exam
-        ][:5]
-        lines = [f"Top 5 câu hỏi khó nhất ({selected_exam}):"]
+        hardest = List()
+        for item in get_hardest_questions(self.question_stats, len(self.question_stats)):
+            if not selected_exam or selected_exam == "Chưa có dữ liệu" or item[0] == selected_exam:
+                hardest.append(item)
+            if len(hardest) == 5:
+                break
+        lines = List()
+        lines.append(f"Top 5 câu hỏi khó nhất ({selected_exam}):")
         for exam_id, qid, correct, total, rate in hardest:
             wrong = total - correct
             lines.append(
