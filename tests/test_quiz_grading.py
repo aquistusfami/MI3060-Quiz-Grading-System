@@ -40,6 +40,14 @@ from custom_structures import HashTable, List, MinHeap, PrefixTrie, merge_sort  
 from models import ExamResult, Question, Student  # noqa: E402
 
 
+def make_table(*pairs):
+    """Tạo ``HashTable`` từ các cặp khóa-giá trị cho dữ liệu kiểm thử."""
+    table = HashTable()
+    for key, value in pairs:
+        table.put(key, value)
+    return table
+
+
 class CsvTestCase(unittest.TestCase):
     """Cung cấp thư mục tạm và helper ghi CSV cho các test validation."""
 
@@ -177,12 +185,15 @@ class GradingTests(unittest.TestCase):
 
     def student(self, student_id, answers, exam_id="E1", name="Student"):
         """Tạo thí sinh tối thiểu dùng chung cho các ca chấm điểm."""
-        return Student(student_id, name, answers, class_id="C1", exam_id=exam_id)
+        answer_table = HashTable()
+        for question_id, answer in answers:
+            answer_table.put(question_id, answer)
+        return Student(student_id, name, answer_table, class_id="C1", exam_id=exam_id)
 
     def test_score_boundaries_and_missing_answer(self):
-        perfect = grade_student(self.student("1", {"1": "A", "2": "B"}), self.answer_key)
-        half = grade_student(self.student("2", {"1": "A"}), self.answer_key)
-        zero = grade_student(self.student("3", {}), self.answer_key)
+        perfect = grade_student(self.student("1", (("1", "A"), ("2", "B"))), self.answer_key)
+        half = grade_student(self.student("2", (("1", "A"),)), self.answer_key)
+        zero = grade_student(self.student("3", ()), self.answer_key)
 
         self.assertEqual((perfect.score, perfect.accuracy_percent), (10.0, 100.0))
         self.assertEqual((half.score, half.wrong_questions), (5.0, ["2"]))
@@ -190,34 +201,34 @@ class GradingTests(unittest.TestCase):
 
     def test_answers_are_compared_exactly(self):
         result = grade_student(
-            self.student("1", {"1": "a", "2": " B "}),
+            self.student("1", (("1", "a"), ("2", " B "))),
             self.answer_key,
         )
         self.assertEqual(result.score, 0.0)
 
     def test_missing_exam_answer_key_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "Không có đáp án"):
-            grade_student(self.student("1", {}, exam_id="E2"), self.answer_key)
+            grade_student(self.student("1", (), exam_id="E2"), self.answer_key)
 
     def test_duplicate_student_in_same_exam_is_rejected(self):
         students = List()
-        students.append(self.student("1", {}))
-        students.append(self.student("1", {}))
+        students.append(self.student("1", ()))
+        students.append(self.student("1", ()))
         errors = validate_grading_inputs(self.answer_key, students)
         self.assertTrue(any("Trùng MSSV" in error for error in errors))
 
     def test_same_student_id_in_different_exams_is_allowed(self):
         self.answer_key.put("E2", Question("1", "A", "E2"))
         students = List()
-        students.append(self.student("1", {"1": "A"}, exam_id="E1"))
-        students.append(self.student("1", {"1": "A"}, exam_id="E2"))
+        students.append(self.student("1", (("1", "A"),), exam_id="E1"))
+        students.append(self.student("1", (("1", "A"),), exam_id="E2"))
         self.assertEqual(validate_grading_inputs(self.answer_key, students), [])
         self.assertEqual(len(grade_all(students, self.answer_key)), 2)
 
     def test_grading_statistics_and_csv_order(self):
         students = List()
-        students.append(self.student("2", {"1": "A", "2": "B"}))
-        students.append(self.student("1", {"1": "A", "2": "X"}))
+        students.append(self.student("2", (("1", "A"), ("2", "B"))))
+        students.append(self.student("1", (("1", "A"), ("2", "X"))))
         results = grade_all(students, self.answer_key)
         rows = build_result_rows_in_student_order(students, results)
         stats = compute_question_stats(students, self.answer_key)
@@ -228,8 +239,8 @@ class GradingTests(unittest.TestCase):
 
     def test_class_summary_uses_five_as_passing_boundary(self):
         students = List()
-        students.append(self.student("1", {"1": "A"}))
-        students.append(self.student("2", {}))
+        students.append(self.student("1", (("1", "A"),)))
+        students.append(self.student("2", ()))
         summary = build_class_summary(grade_all(students, self.answer_key))[0]
 
         self.assertEqual(summary["average"], 2.5)
@@ -242,8 +253,8 @@ class ScoreRangeAndSearchTests(unittest.TestCase):
     @staticmethod
     def result(student_id, score, name="Student", exam_id="E1"):
         """Tạo kết quả tối thiểu dùng cho kiểm thử lọc và tìm kiếm."""
-        student = Student(student_id, name, {}, exam_id=exam_id)
-        return ExamResult(student, score, int(score), 10, [])
+        student = Student(student_id, name, HashTable(), exam_id=exam_id)
+        return ExamResult(student, score, int(score), 10, List())
 
     def setUp(self):
         self.results = HashTable()
@@ -294,8 +305,8 @@ class ExportAndStructureTests(CsvTestCase):
     """Kiểm tra xuất file và hành vi biên của cấu trúc dữ liệu tự cài đặt."""
 
     def test_export_results_creates_parent_directory(self):
-        student = Student("1", "An", {}, exam_id="E1")
-        result = ExamResult(student, 10, 1, 1, [])
+        student = Student("1", "An", HashTable(), exam_id="E1")
+        result = ExamResult(student, 10, 1, 1, List())
         results = HashTable()
         results.put("E1|1", result)
         output_path = os.path.join(self.temp_dir.name, "nested", "results.csv")
@@ -315,6 +326,21 @@ class ExportAndStructureTests(CsvTestCase):
 
         self.assertEqual(table.capacity, 8)
         self.assertEqual([table.get(str(value)) for value in range(4)], list(range(4)))
+
+    def test_hash_table_supports_iteration_and_none_values(self):
+        table = HashTable()
+        table.put("empty", None)
+        table.put("value", 10)
+
+        self.assertIn("empty", table)
+        self.assertIsNone(table["empty"])
+        iterated_keys = List()
+        iterated_keys.extend(table)
+        self.assertEqual(len(iterated_keys), 2)
+        self.assertIn("empty", iterated_keys)
+        self.assertIn("value", iterated_keys)
+        with self.assertRaises(KeyError):
+            _ = table["missing"]
 
     def test_dynamic_list_grows_shrinks_and_checks_empty_pop(self):
         values = List()
@@ -346,9 +372,9 @@ class ExportAndStructureTests(CsvTestCase):
 
     def test_hardest_questions_returns_lowest_rate_first(self):
         stats = HashTable()
-        stats.put("E1|1", {"exam_id": "E1", "question_id": "1", "correct": 2, "total": 2})
-        stats.put("E1|2", {"exam_id": "E1", "question_id": "2", "correct": 0, "total": 2})
-        stats.put("E1|3", {"exam_id": "E1", "question_id": "3", "correct": 1, "total": 2})
+        stats.put("E1|1", make_table(("exam_id", "E1"), ("question_id", "1"), ("correct", 2), ("total", 2)))
+        stats.put("E1|2", make_table(("exam_id", "E1"), ("question_id", "2"), ("correct", 0), ("total", 2)))
+        stats.put("E1|3", make_table(("exam_id", "E1"), ("question_id", "3"), ("correct", 1), ("total", 2)))
 
         hardest = get_hardest_questions(stats, 2)
         self.assertEqual([item[1] for item in hardest], ["2", "3"])
@@ -369,10 +395,14 @@ class SampleDataIntegrationTests(unittest.TestCase):
         self.assertEqual(validate_grading_inputs(answer_key, students), [])
 
         results = grade_all(students, answer_key)
+        first_result = build_result_rows_in_student_order(students, results)[0]
         self.assertEqual(len(answer_key), 40)
         self.assertEqual(len(students), 25)
         self.assertEqual(len(results), 25)
         self.assertEqual(len(compute_question_stats(students, answer_key)), 40)
+        self.assertIsInstance(first_result.student.answers, HashTable)
+        self.assertIsInstance(first_result.wrong_questions, List)
+        self.assertIsInstance(answer_key.question_ids(first_result.exam_id), List)
 
 
 if __name__ == "__main__":
