@@ -22,9 +22,7 @@ Bài tập Lớn môn Cấu trúc Dữ liệu và Giải thuật - Đại học 
 * `scripts/generate_perf_data.py`: Sinh bộ dữ liệu lớn để kiểm thử hiệu năng.
 * `scripts/benchmark_algorithms.py`: Đo thời gian thực thi các thao tác chính trên dữ liệu lớn.
 * `data/`: Chứa dữ liệu mẫu của đề thi, đáp án và bài làm sinh viên.
-* `output/`: Chứa kết quả xuất ra sau khi chấm điểm.
 * `requirements.txt`: Danh sách thư viện cần thiết để chạy chương trình.
-* `CODING_CONVENTIONS.md`: Quy ước đặt tên, chú thích, tổ chức hàm và kiểm thử của project.
 
 ## 3. Mô tả tổng quan
 
@@ -47,8 +45,6 @@ Các chức năng chính:
 Dữ liệu của hệ thống được lưu trữ trong các tệp CSV như `answer_key.csv`, `students.csv`, `exams.csv`. Kết quả sau khi xử lý được xuất ra thư mục `output/`.
 
 ## 4. Cấu trúc dữ liệu và giải thuật sử dụng
-
-Dự án ưu tiên tự cài đặt các cấu trúc dữ liệu cốt lõi thay vì chỉ dùng cấu trúc có sẵn của Python.
 
 | Thành phần | Cấu trúc dữ liệu / giải thuật | Mục đích | Độ phức tạp chính |
 |---|---|---|---|
@@ -100,19 +96,19 @@ Các cột thường dùng:
 |---|---|---|
 | `exam_id` | Mã kỳ thi hoặc mã đề | `EXAM001` |
 | `ma_hp` | Mã học phần | `MI1111` |
-| `hoc_ky` | Học kỳ | `20251` |
+| `hoc_ky` | Học kỳ | `20252` |
 | `id_lop_hp` | ID lớp học phần | `163613` |
 | `mssv` | Mã số sinh viên | `20230001` |
 | `ho_ten` | Họ tên sinh viên | `Nguyen Van An` |
 | `ma_lop` | Mã lớp hành chính | `23D1` |
-| `ten_lop` | Tên lớp hành chính | `Toan Tin K68 - Nhom 1` |
+| `ten_lop` | Tên lớp hành chính | `Toan Tin K69 - Nhom 1` |
 | `q1`, `q2`, ... | Câu trả lời dạng chuỗi tùy chỉnh hoặc để trống | `A, E`, `503`, `33.3` |
 
 Ví dụ:
 
 ```csv
 exam_id,ma_hp,hoc_ky,id_lop_hp,mssv,ho_ten,ma_lop,ten_lop,q1,q2,q3
-EXAM001,MI1111,20251,163613,20230001,Nguyen Van An,23D1,Toan Tin K68 - Nhom 1,A,C,B
+EXAM001,MI1111,20252,163613,20230001,Nguyen Van An,23D1,Toan Tin K69 - Nhom 1,A,C,B
 ```
 
 ### 5.3. File thông tin kỳ thi
@@ -136,30 +132,235 @@ Nếu thiếu `exams.csv`, chương trình vẫn có thể chạy và tự suy l
 
 ## 6. Hướng dẫn cài đặt và chạy chương trình
 
-### 6.1. Yêu cầu hệ thống
+### 6.1. Yêu cầu chung
 
-* Python 3.10 trở lên.
-* Thư viện `customtkinter`.
+* Python 3.10 trở lên. Khuyến nghị Python 3.11, 3.12 hoặc 3.13.
+* `pip` và module tạo môi trường ảo `venv`.
+* Tkinter/Tcl-Tk để hiển thị giao diện.
+* Thư viện `customtkinter`, được khai báo trong `requirements.txt`.
+* Môi trường có giao diện đồ họa. Máy chủ Linux không có desktop hoặc không có biến `DISPLAY` chỉ phù hợp để chạy test và benchmark.
 
-### 6.2. Cài đặt thư viện
+Kiểm tra phiên bản Python:
 
 ```bash
-pip install -r requirements.txt
+python3 --version
 ```
 
-### 6.3. Chạy ứng dụng
+Trên Windows có thể dùng:
+
+```powershell
+py --version
+```
+
+Kiểm tra Tkinter đã hoạt động:
 
 ```bash
+python3 -m tkinter
+```
+
+Trên Windows:
+
+```powershell
+py -m tkinter
+```
+
+Nếu Tkinter được cài đúng, một cửa sổ kiểm tra nhỏ sẽ xuất hiện.
+
+### 6.2. Tải mã nguồn
+
+Người dùng Git có thể clone repository:
+
+```bash
+git clone https://github.com/aquistusfami/MI3060-Quiz-Grading-System.git
+cd MI3060-Quiz-Grading-System
+```
+
+Người dùng không sử dụng Git có thể tải file ZIP từ GitHub, giải nén và mở terminal tại thư mục chứa `main_gui.py`.
+
+### 6.3. Windows 10/11
+
+1. Cài Python từ trang chính thức của Python. Khi dùng bộ cài truyền thống, nên bật tùy chọn thêm Python vào `PATH`.
+2. Mở PowerShell tại thư mục project.
+3. Tạo và kích hoạt môi trường ảo:
+
+```powershell
+py -m venv .venv
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+```
+
+Nếu dùng Command Prompt thay cho PowerShell:
+
+```bat
+py -m venv .venv
+.venv\Scripts\activate.bat
+```
+
+4. Cài thư viện và chạy chương trình:
+
+```powershell
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 python main_gui.py
 ```
 
-Sau khi chạy, chương trình mặc định sử dụng các file:
+Nếu lệnh `py` không tồn tại nhưng `python` hoạt động, thay `py` bằng `python`.
+
+### 6.4. macOS
+
+#### Cách 1: Python từ python.org
+
+Bộ cài Python chính thức thường đi kèm Tcl/Tk. Sau khi cài, mở Terminal tại thư mục project và chạy:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python main_gui.py
+```
+
+#### Cách 2: Homebrew
+
+Ví dụ với Python 3.13:
+
+```bash
+brew install python@3.13 python-tk@3.13
+python3.13 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python main_gui.py
+```
+
+Phiên bản của `python-tk` phải tương ứng với phiên bản Python do Homebrew cài đặt.
+
+### 6.5. Ubuntu và Debian
+
+Cài Python, `venv`, `pip` và Tkinter:
+
+```bash
+sudo apt update
+sudo apt install python3 python3-pip python3-venv python3-tk
+```
+
+Tạo môi trường và chạy ứng dụng:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python main_gui.py
+```
+
+### 6.6. Fedora Workstation
+
+Cài các thành phần cần thiết:
+
+```bash
+sudo dnf install python3 python3-pip python3-tkinter
+```
+
+Tạo môi trường và chạy ứng dụng:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python main_gui.py
+```
+
+### 6.7. Arch Linux và Manjaro
+
+Cài Python, pip và Tk:
+
+```bash
+sudo pacman -S python python-pip tk
+```
+
+Tạo môi trường và chạy ứng dụng:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python main_gui.py
+```
+
+### 6.8. Sử dụng giao diện
+
+Sau khi chạy, chương trình mặc định đọc:
 
 * `data/answer_key.csv`
 * `data/students.csv`
 * `data/exams.csv`
 
-Người dùng có thể chọn file khác trên thanh công cụ, sau đó bấm `CHẤM ĐIỂM` để xử lý.
+Quy trình sử dụng cơ bản:
+
+1. Kiểm tra hoặc chọn file đáp án trên thanh công cụ.
+2. Chọn file bài làm sinh viên.
+3. Nhấn `CHẤM ĐIỂM`.
+4. Xem kết quả, xếp hạng, thống kê lớp và thống kê câu hỏi ở các tab tương ứng.
+5. Dùng chức năng xuất CSV để lưu bảng điểm hoặc thống kê vào thư mục mong muốn.
+
+### 6.9. Chạy kiểm thử dành cho người phát triển
+
+Kích hoạt môi trường ảo trước, sau đó chạy:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Bộ kiểm thử chính nằm trong `tests/test_quiz_grading.py`. Các file `test_part1_business.py` đến `test_part4_business.py` là các điểm chạy tương thích và đều gọi lại bộ test hiện tại.
+
+### 6.10. Chạy benchmark không cần giao diện
+
+Benchmark có thể chạy trên máy không có desktop vì không khởi tạo cửa sổ Tkinter:
+
+```bash
+python scripts/generate_perf_data.py
+python scripts/benchmark_algorithms.py
+```
+
+Lệnh sinh dữ liệu ghi đè các file trong `data/performance/`.
+
+### 6.11. Lỗi thường gặp
+
+#### `ModuleNotFoundError: No module named 'customtkinter'`
+
+Môi trường ảo chưa được kích hoạt hoặc chưa cài thư viện:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+#### `ModuleNotFoundError: No module named 'tkinter'`
+
+* Ubuntu/Debian: `sudo apt install python3-tk`
+* Fedora: `sudo dnf install python3-tkinter`
+* Arch/Manjaro: `sudo pacman -S tk`
+* macOS Homebrew: cài `python-tk` đúng phiên bản Python.
+* Windows/macOS dùng Python từ python.org: chạy lại bộ cài Python và bảo đảm thành phần Tcl/Tk được cài.
+
+#### Linux báo `no display name and no $DISPLAY environment variable`
+
+Ứng dụng GUI đang được chạy trong môi trường không có màn hình, ví dụ SSH hoặc container. Hãy chạy trên phiên desktop, cấu hình X11 forwarding, hoặc chỉ chạy test/benchmark.
+
+#### PowerShell không cho kích hoạt môi trường ảo
+
+Chỉ nới chính sách trong phiên PowerShell hiện tại:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+```
+
+#### Lỗi font của CustomTkinter trên Linux
+
+Ứng dụng vẫn có thể chạy với phương thức vẽ thay thế. Nếu giao diện hiển thị kém, kiểm tra quyền ghi thư mục font người dùng và bảo đảm hệ thống có bộ font desktop thông thường.
 
 ## 7. Các màn hình chính
 
@@ -200,11 +401,3 @@ Mỗi sinh viên được chấm theo công thức:
 ```
 
 Điểm hiển thị được làm tròn đến hai chữ số thập phân.
-
-## 10. Ghi chú
-
-* Đáp án được giữ nguyên và so sánh chính xác, không tự chuẩn hóa.
-* Giá trị CSV chứa dấu phẩy phải đặt trong dấu ngoặc kép, ví dụ `"A, E"`.
-* Câu trả lời bị bỏ trống được tính là sai.
-* Nếu thiếu `exam_id`, hệ thống dùng giá trị mặc định `EXAM001`.
-* File CSV xuất ra dùng mã hóa UTF-8 with BOM để dễ mở bằng các phần mềm bảng tính.
